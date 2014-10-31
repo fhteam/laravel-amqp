@@ -1,0 +1,19 @@
+{
+  "name": "ForumHouseTeam/laravel-amqp",
+  "description": "AMQP library driver for Laravel Queue",
+  "minimum-stability": "stable",
+  "license": "GPL-2.0",
+  "require": {
+    "php": ">=5.4.0",
+    "videlalvaro/php-amqplib": "2.4.*"
+  },
+  "require-dev": {
+    "laravel/framework": "4.*",
+    "squizlabs/php_codesniffer": "1.*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Forumhouse\\LaravelAmpq": "src/"
+    }
+  }
+}
