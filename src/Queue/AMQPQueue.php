@@ -10,6 +10,11 @@ use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 
+/**
+ * Class representing AMQP Queue
+ *
+ * @package Forumhouse\LaravelAmqp\Queue
+ */
 class AMQPQueue extends Queue implements QueueInterface
 {
     const EXCHANGE_TYPE_DIRECT = 'direct';
@@ -21,37 +26,37 @@ class AMQPQueue extends Queue implements QueueInterface
     const EXCHANGE_TYPE_FANOUT = 'fanout';
 
     /**
-     * @var AMQPConnection
+     * @var AMQPConnection Connection to amqp compatible server
      */
     protected $connection;
 
     /**
-     * @var AMQPChannel
+     * @var AMQPChannel Channel, that is used for communication
      */
     protected $channel;
 
     /**
-     * @var string
+     * @var string Default queue name to be used when passed queue = null
      */
     protected $defaultQueueName;
 
     /**
-     * @var string
+     * @var string Exchange name, if used
      */
     protected $exchangeName;
 
     /**
-     * @var string
+     * @var string Default channel id if needed
      */
     private $defaultChannelId;
 
     /**
      * @param AMQPConnection $connection
-     * @param string         $defaultQueueName
-     * @param                $defaultChannelId
-     * @param string         $exchangeName
-     * @param mixed          $exchangeType
-     * @param mixed          $exchangeFlags
+     * @param string         $defaultQueueName Default queue name
+     * @param string         $defaultChannelId Default channel id
+     * @param string         $exchangeName     Exchange name
+     * @param mixed          $exchangeType     Exchange type
+     * @param mixed          $exchangeFlags    Exchange flags
      */
     public function __construct(
         AMQPConnection $connection,
@@ -76,12 +81,12 @@ class AMQPQueue extends Queue implements QueueInterface
     /**
      * Push a new job onto the queue.
      *
-     * @param  string $job
-     * @param  mixed  $data
-     * @param  string $queue
+     * @param  string $job   Job implementation class name
+     * @param  mixed  $data  Job custom data. Usually array
+     * @param  string $queue Queue name, if different from the default one
      *
      * @throws AMQPException
-     * @return bool
+     * @return bool Always true
      */
     public function push($job, $data = '', $queue = null)
     {
@@ -95,11 +100,11 @@ class AMQPQueue extends Queue implements QueueInterface
     /**
      * Push a raw payload onto the queue.
      *
-     * @param  string $payload
-     * @param  string $queue
-     * @param  array  $options
+     * @param  string $payload Job payload
+     * @param  string $queue   Queue name, if different from the default one
+     * @param  array  $options Currently unused
      *
-     * @return bool
+     * @return bool Always true
      */
     public function pushRaw($payload, $queue = null, array $options = [])
     {
@@ -113,12 +118,12 @@ class AMQPQueue extends Queue implements QueueInterface
     /**
      * Push a new job onto the queue after a delay.
      *
-     * @param  \DateTime|int $delay
-     * @param  string        $job
-     * @param  mixed         $data
-     * @param  string        $queue
+     * @param  \DateTime|int $delay Delay
+     * @param  string        $job   Job implementation class name
+     * @param  mixed         $data  Job custom data. Usually array
+     * @param  string        $queue Queue name, if different from the default one
      *
-     * @return bool
+     * @return bool Always true
      */
     public function later($delay, $job, $data = '', $queue = null)
     {
@@ -133,9 +138,9 @@ class AMQPQueue extends Queue implements QueueInterface
     /**
      * Pop the next job off of the queue.
      *
-     * @param string|null $queue
+     * @param string|null $queue Queue name if different from the default one
      *
-     * @return \Illuminate\Queue\Jobs\Job|null
+     * @return \Illuminate\Queue\Jobs\Job|null Job instance or null if no unhandled jobs available
      */
     public function pop($queue = null)
     {
@@ -159,7 +164,7 @@ class AMQPQueue extends Queue implements QueueInterface
      * @see \PhpAmqpLib\Channel\AMQPChannel::exchange_declare
      * @return void
      */
-    public function declareExchange($exchangeName, $exchangeType, array $exchangeFlags = [])
+    protected function declareExchange($exchangeName, $exchangeType, array $exchangeFlags = [])
     {
         $arguments = [$exchangeName, $exchangeType];
 
@@ -180,7 +185,9 @@ class AMQPQueue extends Queue implements QueueInterface
     }
 
     /**
-     * @param string $name
+     * Declares a queue to the AMQP library
+     *
+     * @param string $name The name of the queue to declare
      *
      * @return void
      */
@@ -191,8 +198,10 @@ class AMQPQueue extends Queue implements QueueInterface
     }
 
     /**
-     * @param string $destination
-     * @param int    $delay
+     * Declares delayed queue to the AMQP library
+     *
+     * @param string $destination Queue destination
+     * @param int    $delay       Queue delay
      *
      * @return void
      */
@@ -212,10 +221,10 @@ class AMQPQueue extends Queue implements QueueInterface
     /**
      * Helper to return a default queue name in case passed param is empty
      *
-     * @param string|null $name
+     * @param string|null $name Queue name. If null, default will be used
      *
      * @throws AMQPException
-     * @return string
+     * @return string Queue name to be used in AMQP calls
      */
     protected function getQueueName($name)
     {

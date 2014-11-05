@@ -8,6 +8,11 @@ use Illuminate\Queue\QueueInterface;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
+/**
+ * Job class for AMPQ jobs
+ *
+ * @package Forumhouse\LaravelAmqp\Jobs
+ */
 class AMQPJob extends Job
 {
     /**
