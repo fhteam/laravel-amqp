@@ -127,11 +127,16 @@ class AMQPQueue extends Queue implements QueueInterface
      */
     public function later($delay, $job, $data = '', $queue = null)
     {
+        if ($delay instanceof \DateTime) {
+            $delay = $delay->getTimestamp() - time();
+        }
+
         $queue = $this->getQueueName($queue);
         $this->declareQueue($queue);
+        $delayedQueueName = $this->declareDelayedQueue($queue, $delay);
+
         $payload = new AMQPMessage($this->createPayload($job, $data));
-        $this->declareDelayedQueue($queue, $delay);
-        $this->channel->basic_publish($payload, $this->exchangeName, $queue);
+        $this->channel->basic_publish($payload, $this->exchangeName, $delayedQueueName);
         return true;
     }
 
@@ -200,22 +205,23 @@ class AMQPQueue extends Queue implements QueueInterface
     /**
      * Declares delayed queue to the AMQP library
      *
-     * @param string $destination Queue destination
-     * @param int    $delay       Queue delay
+     * @param string $destinationQueueName Queue destination
+     * @param int    $delay                Queue delay in seconds
      *
-     * @return void
+     * @return string Deferred queue name for the specified delay
      */
-    public function declareDelayedQueue($destination, $delay)
+    public function declareDelayedQueue($destinationQueueName, $delay)
     {
-        $destination = $this->getQueueName($destination);
-        $name = $destination . '_deferred_' . $delay;
+        $destinationQueueName = $this->getQueueName($destinationQueueName);
+        $deferredQueueName = $destinationQueueName . '_deferred_' . $delay;
         $arguments = [
-            'x-dead-letter-exchange' => $this->exchangeName,
-            'x-dead-letter-routing-key' => $destination,
-            'x-message-ttl' => $delay * 1000,
+            'x-dead-letter-exchange' => ['S', ''],
+            'x-dead-letter-routing-key' => ['S', $destinationQueueName],
+            'x-message-ttl' => ['I', $delay * 1000],
         ];
 
-        $this->channel->queue_declare($name, false, true, false, true, false, $arguments);
+        $this->channel->queue_declare($deferredQueueName, false, true, false, true, false, $arguments);
+        return $deferredQueueName;
     }
 
     /**
