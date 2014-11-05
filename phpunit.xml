@@ -9,10 +9,11 @@
          processIsolation="false"
          stopOnFailure="false"
          syntaxCheck="false"
+         strict="true"
 		>
 	<testsuites>
 		<testsuite name="Package Test Suite">
-			<directory suffix=".php">./tests/</directory>
-		</testsuite>
+			<directory>./tests/</directory>
+        </testsuite>
 	</testsuites>
 </phpunit>
