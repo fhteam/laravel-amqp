@@ -1,5 +1,7 @@
 <?php
 
+throw new Exception("Only for IDE autocomplete");
+
 class Queue
 {
 
@@ -14,7 +16,6 @@ class Queue
      */
     public static function push($job, $data = '', $queue = null)
     {
-        // TODO: Implement push() method.
     }
 
     /**
@@ -28,7 +29,6 @@ class Queue
      */
     public static function pushRaw($payload, $queue = null, array $options = array())
     {
-        // TODO: Implement pushRaw() method.
     }
 
     /**
@@ -43,7 +43,6 @@ class Queue
      */
     public static function later($delay, $job, $data = '', $queue = null)
     {
-        // TODO: Implement later() method.
     }
 
     /**
@@ -55,6 +54,5 @@ class Queue
      */
     public static function pop($queue = null)
     {
-        // TODO: Implement pop() method.
     }
 }
