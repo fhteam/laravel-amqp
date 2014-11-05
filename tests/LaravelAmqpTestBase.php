@@ -4,6 +4,11 @@ namespace Forumhouse\LaravelAmqp\Tests;
 
 use Orchestra\Testbench\TestCase;
 
+/**
+ * Class LaravelAmqpTestBase
+ *
+ * @package Forumhouse\LaravelAmqp\Tests
+ */
 class LaravelAmqpTestBase extends TestCase
 {
     /**
@@ -18,18 +23,18 @@ class LaravelAmqpTestBase extends TestCase
         /** @var \Illuminate\Config\Repository $config */
         $config = $app['config'];
         // reset base path to point to our package's src directory
-        $config->set('queue.connections.amqp', array(
+        $config->set('queue.connections.amqp', [
             'driver' => 'amqp',
             'host' => 'localhost',
             'port' => '5672',
             'user' => 'guest',
             'password' => 'guest',
-            'queue' => 'default',
+            'queue' => null,
             'channel_id' => null,
             'exchange_name' => null,
             'exchange_type' => null,
-            'exchange_flags' => [],
-        ));
+            'exchange_flags' => null,
+        ]);
 
         $config->set('queue.default', 'amqp');
     }
@@ -44,8 +49,8 @@ class LaravelAmqpTestBase extends TestCase
      */
     protected function getPackageProviders()
     {
-        return array(
-            'Forumhouse\LaravelAmqp\LaravelAmqpServiceProvider',
-        );
+        return [
+            'Forumhouse\LaravelAmqp\ServiceProvider\LaravelAmqpServiceProvider',
+        ];
     }
 }
