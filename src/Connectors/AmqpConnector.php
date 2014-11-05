@@ -6,6 +6,11 @@ use Forumhouse\LaravelAmqp\Queue\AMQPQueue;
 use Illuminate\Queue\Connectors\ConnectorInterface;
 use PhpAmqpLib\Connection\AMQPConnection;
 
+/**
+ * Class AmqpConnector
+ *
+ * @package Forumhouse\LaravelAmqp
+ */
 class AmqpConnector implements ConnectorInterface
 {
     /**

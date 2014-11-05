@@ -67,7 +67,7 @@ class AMQPQueue extends Queue implements QueueInterface
         $exchangeFlags = []
     ) {
         $this->connection = $connection;
-        $this->defaultQueueName = $defaultQueueName;
+        $this->defaultQueueName = $defaultQueueName ?: 'default';
         $this->defaultChannelId = $defaultChannelId;
 
         $this->exchangeName = $exchangeName;
