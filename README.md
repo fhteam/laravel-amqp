@@ -30,4 +30,9 @@ In your ```config/queue.php``` file you have to provide the following:
 ```
 
 In your ```config/app.php``` add ```'Forumhouse\LaravelAmqp\ServiceProvider\LaravelAmqpServiceProvider'``` to the list of service 
-providers, registered
+providers registered.
+
+Usage
+------------
+
+To find out how to use Laravel Queues, please refer to the following official documentation: http://laravel.com/docs/queues
