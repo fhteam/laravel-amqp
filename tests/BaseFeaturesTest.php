@@ -92,4 +92,19 @@ class BaseFeaturesTest extends LaravelAmqpTestBase
         $noJobs = Queue::pop('custom_queue_2');
         $this->assertNull($noJobs);
     }
+
+    /**
+     * Test for delayed queue messages
+     */
+    public function testDelayedQueue()
+    {
+        Queue::later(5, self::TEST_JOB_CLASS, ['test1' => 1, 'test2' => 2, 'delete' => true]);
+        $noJobs = Queue::pop();
+        $this->assertNull($noJobs);
+        sleep(6);
+
+        $job = Queue::pop();
+        $this->assertInstanceOf('Illuminate\Queue\Jobs\Job', $job);
+        $job->delete();
+    }
 }
