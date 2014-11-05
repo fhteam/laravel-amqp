@@ -5,6 +5,7 @@ namespace Forumhouse\LaravelAmqp\Jobs;
 use Illuminate\Container\Container;
 use Illuminate\Queue\Jobs\Job;
 use Illuminate\Queue\QueueInterface;
+use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
 class AMQPJob extends Job
@@ -18,17 +19,23 @@ class AMQPJob extends Job
      * @var AMQPMessage
      */
     protected $amqpMessage;
+    /**
+     * @var AMQPChannel
+     */
+    private $channel;
 
     /**
      * @param Container $container
      * @param string    $queue
-     * @param string    $jobData
+     * @param           $channel
+     * @param string    $amqpMessage
      */
-    public function __construct($container, $queue, $jobData)
+    public function __construct($container, $queue, $channel, $amqpMessage)
     {
         $this->container = $container;
         $this->queue = $queue;
-        $this->amqpMessage = $jobData;
+        $this->amqpMessage = $amqpMessage;
+        $this->channel = $channel;
     }
 
     /**
@@ -38,7 +45,7 @@ class AMQPJob extends Job
      */
     public function fire()
     {
-        $this->resolveAndFire(json_decode($this->amqpMessage, true));
+        $this->resolveAndFire(json_decode($this->amqpMessage->body, true));
     }
 
     /**
@@ -48,7 +55,7 @@ class AMQPJob extends Job
      */
     public function getRawBody()
     {
-        return $this->amqpMessage;
+        return $this->amqpMessage->body;
     }
 
     /**
@@ -59,7 +66,7 @@ class AMQPJob extends Job
     public function delete()
     {
         parent::delete();
-        $this->amqpMessage->delivery_info['channel']->basic_ack($this->amqpMessage->delivery_info['delivery_tag']);
+        $this->channel->basic_ack($this->amqpMessage->delivery_info['delivery_tag']);
     }
 
     /**

@@ -59,7 +59,7 @@ class AMQPQueue extends Queue implements QueueInterface
         $defaultChannelId = null,
         $exchangeName = '',
         $exchangeType = null,
-        $exchangeFlags = null
+        $exchangeFlags = []
     ) {
         $this->connection = $connection;
         $this->defaultQueueName = $defaultQueueName;
@@ -144,7 +144,7 @@ class AMQPQueue extends Queue implements QueueInterface
         $envelope = $this->channel->basic_get($queue);
 
         if ($envelope instanceof AMQPMessage) {
-            return new AMQPJob($this->container, $queue, $envelope);
+            return new AMQPJob($this->container, $queue, $this->channel, $envelope);
         }
 
         return null;
@@ -174,6 +174,8 @@ class AMQPQueue extends Queue implements QueueInterface
         ], $exchangeFlags);
 
         $arguments = array_merge($arguments, $flags);
+
+        dd($arguments);
         call_user_func_array([$this->channel, 'exchange_declare'], $arguments);
     }
 
