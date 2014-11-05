@@ -1,7 +1,9 @@
 laravel-amqp
 ============
 
-AMQP driver for Laravel queue.
+AMQP driver for Laravel queue. This driver uses popular AMQPLib for PHP: https://github.com/videlalvaro/php-amqplib
+(This library is a pure PHP implementation of the AMQP protocol so it may be used to connect to a number of
+queue managers around)
 
 
 Configuration
