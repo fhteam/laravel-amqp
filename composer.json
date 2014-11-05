@@ -15,7 +15,8 @@
   },
   "autoload": {
     "psr-4": {
-      "Forumhouse\\LaravelAmpq": "src/"
+      "Forumhouse\\LaravelAmqp\\": "src/",
+      "Forumhouse\\LaravelAmqp\\Tests\\": "tests/"
     }
   }
 }

@@ -4,7 +4,7 @@
         "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "138a65384136d8dd348679091fea8f87",
+    "hash": "7f2fe2f7cf1ced9916b8137780392b5e",
     "packages": [
         {
             "name": "videlalvaro/php-amqplib",
