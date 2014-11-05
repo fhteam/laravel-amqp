@@ -31,8 +31,6 @@ In your ```config/queue.php``` file you have to provide the following:
 ),
 ```
 
-Null values may be omitted.
-
 In your ```config/app.php``` add ```'Forumhouse\LaravelAmqp\ServiceProvider\LaravelAmqpServiceProvider'``` to the list of service 
 providers registered.
 
