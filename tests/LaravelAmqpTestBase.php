@@ -30,6 +30,7 @@ class LaravelAmqpTestBase extends TestCase
             'user' => 'guest',
             'password' => 'guest',
             'queue' => null,
+            'queue_flags' => [],
             'channel_id' => null,
             'exchange_name' => null,
             'exchange_type' => null,

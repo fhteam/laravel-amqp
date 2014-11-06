@@ -23,6 +23,7 @@ In your ```config/queue.php``` file you have to provide the following:
         'user' => 'guest',
         'password' => 'guest',
         'queue' => null,
+        'queue_flags' => ['durable' => true],
         'channel_id' => null,
         'exchange_name' => null,
         'exchange_type' => null,

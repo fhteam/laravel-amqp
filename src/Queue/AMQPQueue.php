@@ -49,10 +49,17 @@ class AMQPQueue extends Queue implements QueueInterface
      * @var string Default channel id if needed
      */
     private $defaultChannelId;
+    /**
+     * @var array
+     */
+    private $queueFlags;
 
     /**
      * @param AMQPConnection $connection
      * @param string         $defaultQueueName Default queue name
+     * @param array          $queueFlags       Queue flags See a list of parameters to
+     *                                         \PhpAmqpLib\Channel\AMQPChannel::queue_declare. Parameters should be
+     *                                         passed like for call_user_func_array in this parameter
      * @param string         $defaultChannelId Default channel id
      * @param string         $exchangeName     Exchange name
      * @param mixed          $exchangeType     Exchange type
@@ -61,6 +68,7 @@ class AMQPQueue extends Queue implements QueueInterface
     public function __construct(
         AMQPConnection $connection,
         $defaultQueueName = null,
+        $queueFlags = [],
         $defaultChannelId = null,
         $exchangeName = '',
         $exchangeType = null,
@@ -68,8 +76,8 @@ class AMQPQueue extends Queue implements QueueInterface
     ) {
         $this->connection = $connection;
         $this->defaultQueueName = $defaultQueueName ?: 'default';
+        $this->queueFlags = $queueFlags;
         $this->defaultChannelId = $defaultChannelId;
-
         $this->exchangeName = $exchangeName;
         $this->channel = $connection->channel($this->defaultChannelId);
 
@@ -171,22 +179,19 @@ class AMQPQueue extends Queue implements QueueInterface
      */
     protected function declareExchange($exchangeName, $exchangeType, array $exchangeFlags = [])
     {
-        $arguments = [$exchangeName, $exchangeType];
-
         $flags = array_replace([
+            'exchange' => $exchangeName,
+            'type' => $exchangeType,
             'passive' => false,
             'durable' => false,
             'auto_delete' => true,
             'internal' => false,
             'nowait' => false,
             'arguments' => null,
-            'ticket' => null
+            'ticket' => null,
         ], $exchangeFlags);
 
-        $arguments = array_merge($arguments, $flags);
-
-        dd($arguments);
-        call_user_func_array([$this->channel, 'exchange_declare'], $arguments);
+        call_user_func_array([$this->channel, 'exchange_declare'], $flags);
     }
 
     /**
@@ -199,7 +204,18 @@ class AMQPQueue extends Queue implements QueueInterface
     public function declareQueue($name)
     {
         $queue = $this->getQueueName($name);
-        $this->channel->queue_declare($queue); //TODO: add options support
+        $flags = array_replace([
+            'queue' => $queue,
+            'passive' => false,
+            'durable' => false,
+            'exclusive' => false,
+            'auto_delete' => true,
+            'nowait' => false,
+            'arguments' => null,
+            'ticket' => null,
+        ], $this->queueFlags);
+
+        call_user_func_array([$this->channel, 'queue_declare'], $flags);
     }
 
     /**
@@ -214,13 +230,27 @@ class AMQPQueue extends Queue implements QueueInterface
     {
         $destinationQueueName = $this->getQueueName($destinationQueueName);
         $deferredQueueName = $destinationQueueName . '_deferred_' . $delay;
-        $arguments = [
-            'x-dead-letter-exchange' => ['S', ''],
-            'x-dead-letter-routing-key' => ['S', $destinationQueueName],
-            'x-message-ttl' => ['I', $delay * 1000],
-        ];
 
-        $this->channel->queue_declare($deferredQueueName, false, true, false, true, false, $arguments);
+        $flags = array_replace([
+            'queue' => '',
+            'passive' => false,
+            'durable' => false,
+            'exclusive' => false,
+            'auto_delete' => true,
+            'nowait' => false,
+            'arguments' => null,
+            'ticket' => null,
+        ], $this->queueFlags, [
+            'queue' => $deferredQueueName,
+            'durable' => true,
+            'arguments' => [
+                'x-dead-letter-exchange' => ['S', ''],
+                'x-dead-letter-routing-key' => ['S', $destinationQueueName],
+                'x-message-ttl' => ['I', $delay * 1000],
+            ],
+        ]);
+
+        call_user_func_array([$this->channel, 'queue_declare'], $flags);
         return $deferredQueueName;
     }
 
