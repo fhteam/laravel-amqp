@@ -5,6 +5,11 @@ namespace Forumhouse\LaravelAmqp\Tests;
 use Exception;
 use Illuminate\Queue\Jobs\Job;
 
+/**
+ * Class TestJobHandler
+ *
+ * @package Forumhouse\LaravelAmqp\Tests
+ */
 class TestJobHandler
 {
     /**

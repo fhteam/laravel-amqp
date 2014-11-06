@@ -3,7 +3,6 @@
 namespace Forumhouse\LaravelAmqp\Tests;
 
 use Illuminate\Queue\Jobs\Job;
-use Queue;
 
 /**
  * Class BaseFeaturesTest
@@ -32,16 +31,16 @@ class BaseFeaturesTest extends LaravelAmqpTestBase
      */
     public function testSimpleDelete()
     {
-        Queue::push(self::TEST_JOB_CLASS, ['test1' => 1, 'test2' => 2, 'delete' => true]);
+        $this->app['queue']->push(self::TEST_JOB_CLASS, ['test1' => 1, 'test2' => 2, 'delete' => true]);
         /** @var Job $job */
-        $job = Queue::pop();
+        $job = $this->app['queue']->pop();
         $this->assertInstanceOf('Illuminate\Queue\Jobs\Job', $job);
         $job->fire();
         $jobdata = json_decode($job->getRawBody(), true);
         $this->assertEquals(1, $jobdata['data']['test1']);
         $this->assertEquals(2, $jobdata['data']['test2']);
 
-        $noJobs = Queue::pop();
+        $noJobs = $this->app['queue']->pop();
         $this->assertNull($noJobs);
     }
 
@@ -50,10 +49,10 @@ class BaseFeaturesTest extends LaravelAmqpTestBase
      */
     public function testSimpleRelease()
     {
-        Queue::push(self::TEST_JOB_CLASS, ['test1' => 1, 'test2' => 2, 'release' => true]);
+        $this->app['queue']->push(self::TEST_JOB_CLASS, ['test1' => 1, 'test2' => 2, 'release' => true]);
 
         /** @var Job $job */
-        $job = Queue::pop();
+        $job = $this->app['queue']->pop();
         $this->assertInstanceOf('Illuminate\Queue\Jobs\Job', $job);
         $this->assertEquals(0, $job->attempts());
         $job->fire();
@@ -62,12 +61,12 @@ class BaseFeaturesTest extends LaravelAmqpTestBase
         $this->assertEquals(2, $jobdata['data']['test2']);
 
         //Popping released job
-        $job = Queue::pop();
+        $job = $this->app['queue']->pop();
         $this->assertInstanceOf('Illuminate\Queue\Jobs\Job', $job);
         $this->assertEquals(1, $job->attempts());
         $job->delete();
 
-        $noJobs = Queue::pop();
+        $noJobs = $this->app['queue']->pop();
         $this->assertNull($noJobs);
     }
 
@@ -76,20 +75,29 @@ class BaseFeaturesTest extends LaravelAmqpTestBase
      */
     public function testCustomQueues()
     {
-        Queue::push(self::TEST_JOB_CLASS, ['test1' => 1, 'test2' => 2, 'delete' => true], 'custom_queue_1');
-        Queue::push(self::TEST_JOB_CLASS, ['test1' => 1, 'test2' => 2, 'delete' => true], 'custom_queue_2');
+        $this->app['queue']->push(
+            self::TEST_JOB_CLASS,
+            ['test1' => 1, 'test2' => 2, 'delete' => true],
+            'custom_queue_1'
+        );
+
+        $this->app['queue']->push(
+            self::TEST_JOB_CLASS,
+            ['test1' => 1, 'test2' => 2, 'delete' => true],
+            'custom_queue_2'
+        );
 
         /** @var Job $job */
-        $job = Queue::pop('custom_queue_1');
+        $job = $this->app['queue']->pop('custom_queue_1');
         $this->assertInstanceOf('Illuminate\Queue\Jobs\Job', $job);
         $job->delete();
-        $noJobs = Queue::pop('custom_queue_1');
+        $noJobs = $this->app['queue']->pop('custom_queue_1');
         $this->assertNull($noJobs);
 
-        $job = Queue::pop('custom_queue_2');
+        $job = $this->app['queue']->pop('custom_queue_2');
         $this->assertInstanceOf('Illuminate\Queue\Jobs\Job', $job);
         $job->delete();
-        $noJobs = Queue::pop('custom_queue_2');
+        $noJobs = $this->app['queue']->pop('custom_queue_2');
         $this->assertNull($noJobs);
     }
 
@@ -98,12 +106,13 @@ class BaseFeaturesTest extends LaravelAmqpTestBase
      */
     public function testDelayedQueue()
     {
-        Queue::later(5, self::TEST_JOB_CLASS, ['test1' => 1, 'test2' => 2, 'delete' => true]);
-        $noJobs = Queue::pop();
+        $this->app['queue']->later(5, self::TEST_JOB_CLASS, ['test1' => 1, 'test2' => 2, 'delete' => true]);
+        $noJobs = $this->app['queue']->pop();
         $this->assertNull($noJobs);
         sleep(6);
-
-        $job = Queue::pop();
+        
+        /** @var Job $job */
+        $job = $this->app['queue']->pop();
         $this->assertInstanceOf('Illuminate\Queue\Jobs\Job', $job);
         $job->delete();
     }
