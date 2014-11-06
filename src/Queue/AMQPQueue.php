@@ -53,22 +53,29 @@ class AMQPQueue extends Queue implements QueueInterface
      * @var array
      */
     private $queueFlags;
+    /**
+     * @var array
+     */
+    private $messageProperties;
 
     /**
      * @param AMQPConnection $connection
-     * @param string         $defaultQueueName Default queue name
-     * @param array          $queueFlags       Queue flags See a list of parameters to
-     *                                         \PhpAmqpLib\Channel\AMQPChannel::queue_declare. Parameters should be
-     *                                         passed like for call_user_func_array in this parameter
-     * @param string         $defaultChannelId Default channel id
-     * @param string         $exchangeName     Exchange name
-     * @param mixed          $exchangeType     Exchange type
-     * @param mixed          $exchangeFlags    Exchange flags
+     * @param string         $defaultQueueName  Default queue name
+     * @param array          $queueFlags        Queue flags See a list of parameters to
+     *                                          \PhpAmqpLib\Channel\AMQPChannel::queue_declare. Parameters should be
+     *                                          passed like for call_user_func_array in this parameter
+     * @param array          $messageProperties This is passed as a second parameter to \PhpAmqpLib\Message\AMQPMessage
+     *                                          constructor
+     * @param string         $defaultChannelId  Default channel id
+     * @param string         $exchangeName      Exchange name
+     * @param mixed          $exchangeType      Exchange type
+     * @param mixed          $exchangeFlags     Exchange flags
      */
     public function __construct(
         AMQPConnection $connection,
         $defaultQueueName = null,
         $queueFlags = [],
+        $messageProperties = [],
         $defaultChannelId = null,
         $exchangeName = '',
         $exchangeType = null,
@@ -77,6 +84,7 @@ class AMQPQueue extends Queue implements QueueInterface
         $this->connection = $connection;
         $this->defaultQueueName = $defaultQueueName ?: 'default';
         $this->queueFlags = $queueFlags;
+        $this->messageProperties = $messageProperties;
         $this->defaultChannelId = $defaultChannelId;
         $this->exchangeName = $exchangeName;
         $this->channel = $connection->channel($this->defaultChannelId);
@@ -100,7 +108,7 @@ class AMQPQueue extends Queue implements QueueInterface
     {
         $queue = $this->getQueueName($queue);
         $this->declareQueue($queue);
-        $payload = new AMQPMessage($this->createPayload($job, $data));
+        $payload = new AMQPMessage($this->createPayload($job, $data), $this->messageProperties);
         $this->channel->basic_publish($payload, $this->exchangeName, $queue);
         return true;
     }
@@ -118,7 +126,7 @@ class AMQPQueue extends Queue implements QueueInterface
     {
         $queue = $this->getQueueName($queue);
         $this->declareQueue($queue);
-        $payload = new AMQPMessage($payload);
+        $payload = new AMQPMessage($payload, $this->messageProperties);
         $this->channel->basic_publish($payload, $this->exchangeName, $queue);
         return true;
     }
@@ -143,7 +151,7 @@ class AMQPQueue extends Queue implements QueueInterface
         $this->declareQueue($queue);
         $delayedQueueName = $this->declareDelayedQueue($queue, $delay);
 
-        $payload = new AMQPMessage($this->createPayload($job, $data));
+        $payload = new AMQPMessage($this->createPayload($job, $data), $this->messageProperties);
         $this->channel->basic_publish($payload, $this->exchangeName, $delayedQueueName);
         return true;
     }

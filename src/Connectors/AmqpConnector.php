@@ -36,6 +36,7 @@ class AmqpConnector implements ConnectorInterface
             $connection,
             $config['queue'],
             $config['queue_flags'],
+            $config['message_properties'],
             $config['channel_id'],
             $config['exchange_name'],
             $config['exchange_type'],
