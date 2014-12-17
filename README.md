@@ -5,6 +5,13 @@ AMQP driver for Laravel queue. This driver uses popular AMQPLib for PHP: https:/
 (This library is a pure PHP implementation of the AMQP protocol so it may be used to connect to a number of
 queue managers around)
 
+Installation
+------------
+
+ - Simple composer installation is ok: ```composer require forumhouseteam/laravel-amqp:~1.0 ```
+ (set version requirement to your favourite)
+ - Note, that mbstring and bcmath extensions are required for php-amqplib to work properly. The first is not yet listed
+ in library's composer.json (https://github.com/videlalvaro/php-amqplib/issues/229)
 
 Configuration
 ------------
