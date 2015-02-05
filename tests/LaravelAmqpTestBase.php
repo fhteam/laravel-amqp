@@ -29,6 +29,7 @@ class LaravelAmqpTestBase extends TestCase
             'port' => '5672',
             'user' => 'guest',
             'password' => 'guest',
+            'vhost' => '/',
             'queue' => null,
             'queue_flags' => ['durable' => true],
             'message_properties' => ['delivery_mode' => 2],
