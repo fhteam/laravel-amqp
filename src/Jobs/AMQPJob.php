@@ -4,7 +4,7 @@ namespace Forumhouse\LaravelAmqp\Jobs;
 
 use Illuminate\Container\Container;
 use Illuminate\Queue\Jobs\Job;
-use Illuminate\Queue\QueueInterface;
+use Illuminate\Queue\Queue;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
@@ -106,12 +106,12 @@ class AMQPJob extends Job
         $job = $body['job'];
         $data = $body['data'];
 
-        /** @var QueueInterface $queueInterface */
-        $queueInterface = $this->container['queue']->connection();
+        /** @var Queue $queue */
+        $queue = $this->container['queue']->connection();
         if ($delay > 0) {
-            $queueInterface->later($delay, $job, $data, $this->getQueue());
+            $queue->later($delay, $job, $data, $this->getQueue());
         } else {
-            $queueInterface->push($job, $data, $this->getQueue());
+            $queue->push($job, $data, $this->getQueue());
         }
     }
 
