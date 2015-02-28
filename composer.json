@@ -8,7 +8,7 @@
     "videlalvaro/php-amqplib": "2.4.*"
   },
   "require-dev": {
-    "laravel/framework": "5.0.*",
+    "laravel/framework": ">=4.0.0",
     "squizlabs/php_codesniffer": "1.*",
     "orchestra/testbench": "3.0.4",
     "phpunit/phpunit": "4.3.*"
