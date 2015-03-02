@@ -18,7 +18,7 @@ class AmqpConnector implements ConnectorInterface
      *
      * @param  array $config
      *
-     * @return \Illuminate\Queue\QueueInterface
+     * @return \Illuminate\Queue\Queue
      */
     public function connect(array $config)
     {

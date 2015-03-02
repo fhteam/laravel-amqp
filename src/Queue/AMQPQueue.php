@@ -5,7 +5,6 @@ namespace Forumhouse\LaravelAmqp\Queue;
 use Forumhouse\LaravelAmqp\Exception\AMQPException;
 use Forumhouse\LaravelAmqp\Jobs\AMQPJob;
 use Illuminate\Queue\Queue;
-use Illuminate\Queue\QueueInterface;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPConnection;
 use PhpAmqpLib\Message\AMQPMessage;
@@ -15,7 +14,7 @@ use PhpAmqpLib\Message\AMQPMessage;
  *
  * @package Forumhouse\LaravelAmqp\Queue
  */
-class AMQPQueue extends Queue implements QueueInterface
+class AMQPQueue extends Queue
 {
     const EXCHANGE_TYPE_DIRECT = 'direct';
 
