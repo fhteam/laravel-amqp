@@ -8,7 +8,10 @@ queue managers around)
 Installation
 ------------
 
- - Simple composer installation is ok: ```composer require forumhouseteam/laravel-amqp:~1.0 ```
+*Please do note, that package name has changed to fhteam/laravel-amqp.* Old name should still work, though it will not be
+maintained.
+
+ - Simple composer installation is ok: ```composer require fhteam/laravel-amqp:~1.0 ```
  (set version requirement to your favourite)
  - Note, that mbstring and bcmath extensions are required for php-amqplib to work properly. The first is not yet listed
  in library's composer.json (https://github.com/videlalvaro/php-amqplib/issues/229)
