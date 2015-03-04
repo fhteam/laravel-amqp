@@ -22,7 +22,13 @@ class AmqpConnector implements ConnectorInterface
      */
     public function connect(array $config)
     {
-        $connection = new AMQPConnection($config['host'], $config['port'], $config['user'], $config['password'], $config['vhost']);
+        $connection = new AMQPConnection(
+            $config['host'],
+            $config['port'],
+            $config['user'],
+            $config['password'],
+            isset($config['vhost']) ? $config['vhost'] : '/'
+        );
 
         if (!isset($config['exchange_type'])) {
             $config['exchange_type'] = AMQPQueue::EXCHANGE_TYPE_DIRECT;
