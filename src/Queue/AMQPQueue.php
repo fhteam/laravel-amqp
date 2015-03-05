@@ -255,6 +255,7 @@ class AMQPQueue extends Queue
                 'x-dead-letter-exchange' => ['S', ''],
                 'x-dead-letter-routing-key' => ['S', $destinationQueueName],
                 'x-message-ttl' => ['I', $delay * 1000],
+                'x-expires' => ['I', ($delay + 1) * 1000],
             ],
         ]);
 
