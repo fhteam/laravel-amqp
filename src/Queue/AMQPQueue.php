@@ -4,6 +4,7 @@ namespace Forumhouse\LaravelAmqp\Queue;
 
 use Forumhouse\LaravelAmqp\Exception\AMQPException;
 use Forumhouse\LaravelAmqp\Jobs\AMQPJob;
+use Forumhouse\LaravelAmqp\Utility\ArrayUtil;
 use Illuminate\Queue\Queue;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPConnection;
@@ -211,7 +212,7 @@ class AMQPQueue extends Queue
     public function declareQueue($name)
     {
         $queue = $this->getQueueName($name);
-        $flags = array_replace([
+        $flags = array_replace_recursive([
             'queue' => $queue,
             'passive' => false,
             'durable' => false,
@@ -220,7 +221,7 @@ class AMQPQueue extends Queue
             'nowait' => false,
             'arguments' => null,
             'ticket' => null,
-        ], $this->queueFlags);
+        ], $this->getQueueFlags($name));
 
         call_user_func_array([$this->channel, 'queue_declare'], $flags);
     }
@@ -238,7 +239,7 @@ class AMQPQueue extends Queue
         $destinationQueueName = $this->getQueueName($destinationQueueName);
         $deferredQueueName = $destinationQueueName . '_deferred_' . $delay;
 
-        $flags = array_replace([
+        $flags = array_replace_recursive([
             'queue' => '',
             'passive' => false,
             'durable' => false,
@@ -247,7 +248,7 @@ class AMQPQueue extends Queue
             'nowait' => false,
             'arguments' => null,
             'ticket' => null,
-        ], $this->queueFlags, [
+        ], $this->getQueueFlags($destinationQueueName, $deferredQueueName, $delay), [
             'queue' => $deferredQueueName,
             'durable' => true,
             'arguments' => [
@@ -276,5 +277,23 @@ class AMQPQueue extends Queue
             throw new AMQPException('Default nor specific queue names given');
         }
         return $name;
+    }
+
+    /**
+     * @param string      $queueName
+     * @param null|string $deferredQueueName
+     * @param null|int    $deferredQueueDelay
+     *
+     * @return array
+     */
+    protected function getQueueFlags($queueName, $deferredQueueName = null, $deferredQueueDelay = null)
+    {
+        $result = ArrayUtil::arrayMapRecursive(function ($value) {
+            return is_callable($value) ? call_user_func_array($value, func_get_args()) : $value;
+        }, $this->queueFlags);
+
+        $result = ArrayUtil::removeNullsRecursive($result);
+
+        return $result;
     }
 }
