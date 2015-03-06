@@ -288,8 +288,9 @@ class AMQPQueue extends Queue
      */
     protected function getQueueFlags($queueName, $deferredQueueName = null, $deferredQueueDelay = null)
     {
-        $result = ArrayUtil::arrayMapRecursive(function ($value) {
-            return is_callable($value) ? call_user_func_array($value, func_get_args()) : $value;
+        $args = func_get_args();
+        $result = ArrayUtil::arrayMapRecursive(function ($value) use($args) {
+            return is_callable($value) ? call_user_func_array($value, $args) : $value;
         }, $this->queueFlags);
 
         $result = ArrayUtil::removeNullsRecursive($result);
