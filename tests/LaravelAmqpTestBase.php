@@ -43,14 +43,13 @@ class LaravelAmqpTestBase extends TestCase
     }
 
     /**
-     * Get package providers.  At a minimum this is the package being tested, but also
-     * would include packages upon which our package depends, e.g. Cartalyst/Sentry
-     * In a normal app environment these would be added to the 'providers' array in
-     * the config/app.php file.
+     * Get package providers.
+     *
+     * @param  \Illuminate\Foundation\Application $app
      *
      * @return array
      */
-    protected function getPackageProviders()
+    protected function getPackageProviders($app)
     {
         return [
             'Forumhouse\LaravelAmqp\ServiceProvider\LaravelAmqpServiceProvider',
