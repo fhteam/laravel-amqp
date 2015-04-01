@@ -3,8 +3,8 @@
 namespace Forumhouse\LaravelAmqp\Jobs;
 
 use Illuminate\Container\Container;
+use Illuminate\Contracts\Queue\Queue as QueueContract;
 use Illuminate\Queue\Jobs\Job;
-use Illuminate\Queue\Queue;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
@@ -13,7 +13,7 @@ use PhpAmqpLib\Message\AMQPMessage;
  *
  * @package Forumhouse\LaravelAmqp\Jobs
  */
-class AMQPJob extends Job
+class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
 {
     /**
      * @var string
@@ -106,7 +106,7 @@ class AMQPJob extends Job
         $job = $body['job'];
         $data = $body['data'];
 
-        /** @var Queue $queue */
+        /** @var QueueContract $queue */
         $queue = $this->container['queue']->connection();
         if ($delay > 0) {
             $queue->later($delay, $job, $data, $this->getQueue());
