@@ -9,13 +9,14 @@ use Illuminate\Queue\Queue;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPConnection;
 use PhpAmqpLib\Message\AMQPMessage;
+use Illuminate\Contracts\Queue\Queue as QueueContract;
 
 /**
  * Class representing AMQP Queue
  *
  * @package Forumhouse\LaravelAmqp\Queue
  */
-class AMQPQueue extends Queue
+class AMQPQueue extends Queue implements QueueContract
 {
     const EXCHANGE_TYPE_DIRECT = 'direct';
 
