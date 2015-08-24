@@ -1,4 +1,4 @@
-laravel-amqp [![PHP version](https://badge.fury.io/ph/fhteam%2Flaravel-amqp.png)](http://badge.fury.io/ph/fhteam%2Flaravel-amqp) [![Code Climate](https://codeclimate.com/github/forumhouseteam/laravel-amqp/badges/gpa.svg)](https://codeclimate.com/github/forumhouseteam/laravel-amqp) [![Laravel compatibility](https://img.shields.io/badge/laravel-5-green.svg)](http://laravel.com/)
+laravel-amqp [![PHP version](https://badge.fury.io/ph/fhteam%2Flaravel-amqp.svg)](http://badge.fury.io/ph/fhteam%2Flaravel-amqp) [![Code Climate](https://codeclimate.com/github/forumhouseteam/laravel-amqp/badges/gpa.svg)](https://codeclimate.com/github/forumhouseteam/laravel-amqp) [![Laravel compatibility](https://img.shields.io/badge/laravel-5-green.svg)](http://laravel.com/)
 ============
 
 AMQP driver for Laravel queue. This driver uses popular AMQPLib for PHP: https://github.com/videlalvaro/php-amqplib
