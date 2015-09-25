@@ -110,7 +110,7 @@ class AMQPQueue extends Queue implements QueueContract
         $queue = $this->getQueueName($queue);
         $this->declareQueue($queue);
         $payload = new AMQPMessage($this->createPayload($job, $data), $this->messageProperties);
-        $this->channel->basic_publish($payload, $this->exchangeName, $queue);
+        $this->channel->basic_publish($payload, $this->exchangeName, $this->getRoutingKey($queue));
         return true;
     }
 
@@ -278,6 +278,17 @@ class AMQPQueue extends Queue implements QueueContract
             throw new AMQPException('Default nor specific queue names given');
         }
         return $name;
+    }
+
+    /**
+     *  Get routing key from config or use default one (queue name)
+     *
+     * @param $queue string
+     * @return string Routing key name
+     */
+    protected function getRoutingKey($queue)
+    {
+        return empty($this->queueFlags['routing_key']) ? $queue : $this->queueFlags['routing_key'];
     }
 
     /**
