@@ -34,7 +34,7 @@ In your ```config/queue.php``` file you have to provide the following:
         'password' => 'guest',
         'vhost' => '/',
         'queue' => null,
-        'queue_flags' => ['durable' => true], //Durable queue (survives server crash)
+        'queue_flags' => ['durable' => true, 'routing_key' => null], //Durable queue (survives server crash)
         'message_properties' => ['delivery_mode' => 2], //Persistent messages (survives server crash)
         'channel_id' => null,
         'exchange_name' => null,
