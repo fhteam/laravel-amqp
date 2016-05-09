@@ -5,7 +5,7 @@
   "license": "GPL-2.0",
   "require": {
     "php": ">=5.4.0",
-    "videlalvaro/php-amqplib": "2.4.*"
+    "php-amqplib/php-amqplib": "2.6.*"
   },
   "require-dev": {
     "laravel/framework": ">=4.0.0",
