@@ -50,17 +50,11 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
      */
     public function fire()
     {
-        $this->resolveAndFire(json_decode($this->amqpMessage->body, true));
-    }
-
-    /**
-     * Get the raw body string for the job.
-     *
-     * @return string
-     */
-    public function getRawBody()
-    {
-        return $this->amqpMessage->body;
+        $payload = json_decode($this->amqpMessage->body, true);
+        if (is_null($payload))
+            $this->delete();
+        else
+            $this->resolveAndFire($payload);
     }
 
     /**
@@ -75,13 +69,13 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
     }
 
     /**
-     * Get queue name
+     * Get the raw body string for the job.
      *
      * @return string
      */
-    public function getQueue()
+    public function getRawBody()
     {
-        return $this->queue;
+        return $this->amqpMessage->body;
     }
 
     /**
@@ -125,6 +119,16 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
         $body = json_decode($this->amqpMessage->body, true);
 
         return isset($body['data']['attempts']) ? $body['data']['attempts'] : 0;
+    }
+
+    /**
+     * Get queue name
+     *
+     * @return string
+     */
+    public function getQueue()
+    {
+        return $this->queue;
     }
 
     /**
