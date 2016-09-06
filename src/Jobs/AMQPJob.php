@@ -42,31 +42,7 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
         $this->amqpMessage = $amqpMessage;
         $this->channel = $channel;
     }
-
-    /**
-     * Fire the job.
-     *
-     * @return void
-     */
-    public function fire()
-    {
-        if (is_null($this->payload()))
-            $this->delete();
-        else
-            $this->fire();
-    }
-
-    /**
-     * Delete the job from the queue.
-     *
-     * @return void
-     */
-    public function delete()
-    {
-        parent::delete();
-        $this->channel->basic_ack($this->amqpMessage->delivery_info['delivery_tag']);
-    }
-
+    
     /**
      * Get the raw body string for the job.
      *
@@ -106,6 +82,17 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
         } else {
             $queue->push($job, $data, $this->getQueue());
         }
+    }
+
+    /**
+     * Delete the job from the queue.
+     *
+     * @return void
+     */
+    public function delete()
+    {
+        parent::delete();
+        $this->channel->basic_ack($this->amqpMessage->delivery_info['delivery_tag']);
     }
 
     /**
