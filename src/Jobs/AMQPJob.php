@@ -50,11 +50,10 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
      */
     public function fire()
     {
-        $payload = json_decode($this->amqpMessage->body, true);
-        if (is_null($payload))
+        if (is_null($this->payload()))
             $this->delete();
         else
-            $this->resolveAndFire($payload);
+            $this->fire();
     }
 
     /**
