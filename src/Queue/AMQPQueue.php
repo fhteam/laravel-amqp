@@ -310,4 +310,14 @@ class AMQPQueue extends Queue implements QueueContract
 
         return null;
     }
+
+    /**
+     * Get the size of the queue.
+     *
+     * @param  string $queue
+     * @return int
+     */
+    public function size($queue = null)
+    {
+    }
 }
