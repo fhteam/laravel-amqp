@@ -42,17 +42,7 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
         $this->amqpMessage = $amqpMessage;
         $this->channel = $channel;
     }
-
-    /**
-     * Fire the job.
-     *
-     * @return void
-     */
-    public function fire()
-    {
-        $this->resolveAndFire(json_decode($this->amqpMessage->body, true));
-    }
-
+    
     /**
      * Get the raw body string for the job.
      *
@@ -61,27 +51,6 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
     public function getRawBody()
     {
         return $this->amqpMessage->body;
-    }
-
-    /**
-     * Delete the job from the queue.
-     *
-     * @return void
-     */
-    public function delete()
-    {
-        parent::delete();
-        $this->channel->basic_ack($this->amqpMessage->delivery_info['delivery_tag']);
-    }
-
-    /**
-     * Get queue name
-     *
-     * @return string
-     */
-    public function getQueue()
-    {
-        return $this->queue;
     }
 
     /**
@@ -116,6 +85,17 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
     }
 
     /**
+     * Delete the job from the queue.
+     *
+     * @return void
+     */
+    public function delete()
+    {
+        parent::delete();
+        $this->channel->basic_ack($this->amqpMessage->delivery_info['delivery_tag']);
+    }
+
+    /**
      * Get the number of times the job has been attempted.
      *
      * @return int
@@ -125,6 +105,16 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
         $body = json_decode($this->amqpMessage->body, true);
 
         return isset($body['data']['attempts']) ? $body['data']['attempts'] : 0;
+    }
+
+    /**
+     * Get queue name
+     *
+     * @return string
+     */
+    public function getQueue()
+    {
+        return $this->queue;
     }
 
     /**
