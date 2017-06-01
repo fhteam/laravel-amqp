@@ -24,19 +24,20 @@ class LaravelAmqpTestBase extends TestCase
         $config = $app['config'];
         // reset base path to point to our package's src directory
         $config->set('queue.connections.amqp', [
-            'driver' => 'amqp',
-            'host' => 'localhost',
-            'port' => '5672',
-            'user' => 'guest',
-            'password' => 'guest',
-            'vhost' => '/',
-            'queue' => null,
-            'queue_flags' => ['durable' => true],
+            'driver'             => 'amqp',
+            'host'               => 'localhost',
+            'port'               => '5672',
+            'user'               => 'guest',
+            'password'           => 'guest',
+            'vhost'              => '/',
+            'queue'              => null,
+            'queue_flags'        => ['durable' => true],
+            'declare_queues'     => true,
             'message_properties' => ['delivery_mode' => 2],
-            'channel_id' => null,
-            'exchange_name' => null,
-            'exchange_type' => null,
-            'exchange_flags' => null,
+            'channel_id'         => null,
+            'exchange_name'      => null,
+            'exchange_type'      => null,
+            'exchange_flags'     => null,
         ]);
 
         $config->set('queue.default', 'amqp');

@@ -2,6 +2,7 @@
 
 namespace Forumhouse\LaravelAmqp\Tests;
 
+use Forumhouse\LaravelAmqp\Jobs\AMQPJob;
 use Illuminate\Queue\Jobs\Job;
 
 /**
@@ -32,7 +33,7 @@ class BaseFeaturesTest extends LaravelAmqpTestBase
     public function testSimpleDelete()
     {
         $this->app['queue']->push(self::TEST_JOB_CLASS, ['test1' => 1, 'test2' => 2, 'delete' => true]);
-        /** @var Job $job */
+        /** @var AMQPJob $job */
         $job = $this->app['queue']->pop();
         $this->assertInstanceOf('Illuminate\Queue\Jobs\Job', $job);
         $job->fire();
@@ -51,7 +52,7 @@ class BaseFeaturesTest extends LaravelAmqpTestBase
     {
         $this->app['queue']->push(self::TEST_JOB_CLASS, ['test1' => 1, 'test2' => 2, 'release' => true]);
 
-        /** @var Job $job */
+        /** @var AMQPJob $job */
         $job = $this->app['queue']->pop();
         $this->assertInstanceOf('Illuminate\Queue\Jobs\Job', $job);
         $this->assertEquals(0, $job->attempts());
