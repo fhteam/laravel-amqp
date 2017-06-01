@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\Queue as QueueContract;
 use Illuminate\Queue\Queue;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPConnection;
+use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
 
@@ -61,7 +62,7 @@ class AMQPQueue extends Queue implements QueueContract
     private $messageProperties;
 
     /**
-     * @param AMQPConnection $connection
+     * @param AMQPStreamConnection $connection
      * @param string         $defaultQueueName  Default queue name
      * @param array          $queueFlags        Queue flags See a list of parameters to
      *                                          \PhpAmqpLib\Channel\AMQPChannel::queue_declare. Parameters should be
@@ -74,7 +75,7 @@ class AMQPQueue extends Queue implements QueueContract
      * @param mixed          $exchangeFlags     Exchange flags
      */
     public function __construct(
-        AMQPConnection $connection,
+        AMQPStreamConnection $connection,
         $defaultQueueName = null,
         $queueFlags = [],
         $messageProperties = [],
