@@ -284,7 +284,7 @@ class AMQPQueue extends Queue implements QueueContract
             'arguments' => new AMQPTable([
                 'x-dead-letter-exchange' => '',
                 'x-dead-letter-routing-key' => $destinationQueueName,
-                'x-message-ttl' => $delay * 1000,
+                'x-message-ttl' => intval($delay * 1000),
             ]),
         ]);
 
