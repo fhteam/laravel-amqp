@@ -45,7 +45,7 @@ class QueueInfo
     /**
      * @return string
      */
-    public function getName(): string
+    public function getName()
     {
         return $this->name;
     }
@@ -53,7 +53,7 @@ class QueueInfo
     /**
      * @return int
      */
-    public function getJobs(): int
+    public function getJobs()
     {
         return $this->jobs;
     }
@@ -61,7 +61,7 @@ class QueueInfo
     /**
      * @return int
      */
-    public function getConsumers(): int
+    public function getConsumers()
     {
         return $this->consumers;
     }

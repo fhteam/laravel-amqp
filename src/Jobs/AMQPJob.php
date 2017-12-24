@@ -121,6 +121,7 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
      * Get the job identifier.
      *
      * @return string
+     * @throws \OutOfBoundsException
      */
     public function getJobId()
     {
