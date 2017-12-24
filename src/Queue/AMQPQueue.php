@@ -141,6 +141,7 @@ class AMQPQueue extends Queue implements QueueContract
      * @param  mixed  $data  Job custom data. Usually array
      * @param  string $queue Queue name, if different from the default one
      *
+     * @throws \Illuminate\Queue\InvalidPayloadException
      * @throws AMQPException
      * @return bool Always true
      */
@@ -178,6 +179,7 @@ class AMQPQueue extends Queue implements QueueContract
      * @param string $name The name of the queue to declare
      *
      * @return QueueInfo
+     * @throws AMQPException
      */
     public function declareQueue($name)
     {
@@ -235,6 +237,7 @@ class AMQPQueue extends Queue implements QueueContract
      * @param  array  $options Currently unused
      *
      * @return bool Always true
+     * @throws AMQPException
      */
     public function pushRaw($payload, $queue = null, array $options = [])
     {
@@ -242,8 +245,8 @@ class AMQPQueue extends Queue implements QueueContract
         if ($this->declareQueues) {
             $this->declareQueue($queue);
         }
-        $payload = new AMQPMessage($payload, $this->messageProperties);
-        $this->channel->basic_publish($payload, $this->exchangeName, $queue);
+        $amqpPayload = new AMQPMessage($payload, $this->messageProperties);
+        $this->channel->basic_publish($amqpPayload, $this->exchangeName, $queue);
         return true;
     }
 
@@ -256,6 +259,7 @@ class AMQPQueue extends Queue implements QueueContract
      * @param  string        $queue Queue name, if different from the default one
      *
      * @return bool Always true
+     * @throws AMQPException
      */
     public function later($delay, $job, $data = '', $queue = null)
     {
@@ -281,6 +285,7 @@ class AMQPQueue extends Queue implements QueueContract
      * @param int    $delay                Queue delay in seconds
      *
      * @return string Deferred queue name for the specified delay
+     * @throws AMQPException
      */
     public function declareDelayedQueue($destinationQueueName, $delay)
     {
@@ -316,6 +321,7 @@ class AMQPQueue extends Queue implements QueueContract
      * @param string|null $queue Queue name if different from the default one
      *
      * @return \Illuminate\Queue\Jobs\Job|null Job instance or null if no unhandled jobs available
+     * @throws AMQPException
      */
     public function pop($queue = null)
     {
@@ -338,10 +344,31 @@ class AMQPQueue extends Queue implements QueueContract
      * @param  string $queue
      *
      * @return int
+     * @throws AMQPException
      */
     public function size($queue = null)
     {
         $data = $this->declareQueue($this->getQueueName($queue));
         return $data->getJobs();
+    }
+
+    /**
+     * @return array
+     */
+    public function getMessageProperties()
+    {
+        return $this->messageProperties;
+    }
+
+    /**
+     * @param array $messageProperties
+     *
+     * @return AMQPQueue
+     */
+    public function setMessageProperties(array $messageProperties)
+    {
+        $this->messageProperties = $messageProperties;
+
+        return $this;
     }
 }
