@@ -15,116 +15,114 @@ use PhpAmqpLib\Message\AMQPMessage;
  */
 class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
 {
-    /**
-     * @var string
-     */
-    protected $queue;
+	/**
+	 * @var string
+	 */
+	protected $queue;
 
-    /**
-     * @var AMQPMessage
-     */
-    protected $amqpMessage;
-    /**
-     * @var AMQPChannel
-     */
-    private $channel;
+	/**
+	 * @var AMQPMessage
+	 */
+	protected $amqpMessage;
+	/**
+	 * @var AMQPChannel
+	 */
+	private $channel;
 
-    /**
-     * @param Container $container
-     * @param string    $queue
-     * @param           $channel
-     * @param string    $amqpMessage
-     */
-    public function __construct($container, $queue, $channel, $amqpMessage)
-    {
-        $this->container = $container;
-        $this->queue = $queue;
-        $this->amqpMessage = $amqpMessage;
-        $this->channel = $channel;
-    }
-    
-    /**
-     * Get the raw body string for the job.
-     *
-     * @return string
-     */
-    public function getRawBody()
-    {
-        return $this->amqpMessage->body;
-    }
+	/**
+	 * @param Container $container
+	 * @param string    $queue
+	 * @param           $channel
+	 * @param string    $amqpMessage
+	 */
+	public function __construct($container, $queue, $channel, $amqpMessage)
+	{
+		$this->container = $container;
+		$this->queue = $queue;
+		$this->amqpMessage = $amqpMessage;
+		$this->channel = $channel;
+	}
 
-    /**
-     * Release the job back into the queue.
-     *
-     * @param  int $delay
-     *
-     * @return void
-     */
-    public function release($delay = 0)
-    {
-        $this->delete();
+	/**
+	 * Get the raw body string for the job.
+	 *
+	 * @return string
+	 */
+	public function getRawBody()
+	{
+		return $this->amqpMessage->body;
+	}
 
-        $body = $this->amqpMessage->body;
-        $body = json_decode($body, true);
+	/**
+	 * Release the job back into the queue.
+	 *
+	 * @param  int $delay
+	 *
+	 * @return void
+	 */
+	public function release($delay = 0)
+	{
+		$this->delete();
 
-        $attempts = $this->attempts();
+		$body = $this->amqpMessage->body;
+		$body = json_decode($body, true);
 
-        // write attempts to body
-        $body['data']['attempts'] = $attempts + 1;
+		$body['attempts'] = $this->attempts() + 1;
+		$job = $body['job'];
 
-        $job = $body['job'];
-        $data = $body['data'];
+		/** @var QueueContract $queue */
+		$queue = $this->container['queue']->connection();
+		if ($delay > 0) {
+			$queue->later($delay, $job, $body, $this->getQueue());
+		} else {
+			$queue->push($job, $body, $this->getQueue());
+		}
 
-        /** @var QueueContract $queue */
-        $queue = $this->container['queue']->connection();
-        if ($delay > 0) {
-            $queue->later($delay, $job, $data, $this->getQueue());
-        } else {
-            $queue->push($job, $data, $this->getQueue());
-        }
-    }
+		// TODO: IS THIS NECESSARY?
+		parent::release();
+	}
 
-    /**
-     * Delete the job from the queue.
-     *
-     * @return void
-     */
-    public function delete()
-    {
-        parent::delete();
-        $this->channel->basic_ack($this->amqpMessage->delivery_info['delivery_tag']);
-    }
+	/**
+	 * Delete the job from the queue.
+	 *
+	 * @return void
+	 */
+	public function delete()
+	{
+		parent::delete();
+		$this->channel->basic_ack($this->amqpMessage->delivery_info['delivery_tag']);
+	}
 
-    /**
-     * Get the number of times the job has been attempted.
-     *
-     * @return int
-     */
-    public function attempts()
-    {
-        $body = json_decode($this->amqpMessage->body, true);
+	/**
+	 * Get the number of times the job has been attempted.
+	 *
+	 * @return int
+	 */
+	public function attempts()
+	{
+		$body = json_decode($this->amqpMessage->body, true);
 
-        return isset($body['data']['attempts']) ? $body['data']['attempts'] : 0;
-    }
+		return isset($body['attempts']) ? $body['attempts'] : 0;
+	}
 
-    /**
-     * Get queue name
-     *
-     * @return string
-     */
-    public function getQueue()
-    {
-        return $this->queue;
-    }
+	/**
+	 * Get queue name
+	 *
+	 * @return string
+	 */
+	public function getQueue()
+	{
+		return $this->queue;
+	}
 
-    /**
-     * Get the job identifier.
-     *
-     * @return string
-     * @throws \OutOfBoundsException
-     */
-    public function getJobId()
-    {
-        return $this->amqpMessage->get('message_id');
-    }
+	/**
+	 * Get the job identifier.
+	 *
+	 * @return string
+	 * @throws \OutOfBoundsException
+	 */
+	public function getJobId()
+	{
+		return $this->amqpMessage->get('message_id');
+	}
 }
