@@ -148,8 +148,8 @@ class AMQPQueue extends Queue implements QueueContract
 	public function push($job, $data = '', $queue = null)
 	{
 		$queue = $this->prepareQueue($queue);
-		$payload = new AMQPMessage($this->createPayload($job, $data), $this->messageProperties);
-		$this->channel->basic_publish($payload, $this->exchangeName, $this->getRoutingKey($queue));
+		$amqpMessage = $this->priorityMessage($job, $data);
+		$this->channel->basic_publish($amqpMessage, $this->exchangeName, $this->getRoutingKey($queue));
 
 		return true;
 	}
@@ -168,8 +168,8 @@ class AMQPQueue extends Queue implements QueueContract
 	public function addMessageToBatch($job, $data = '', $queue = null)
 	{
 		$queue = $this->prepareQueue($queue);
-		$payload = new AMQPMessage($this->createPayload($job, $data), $this->messageProperties);
-		$this->channel->batch_basic_publish($payload, $this->exchangeName, $this->getRoutingKey($queue));
+		$amqpMessage = $this->priorityMessage($job, $data);
+		$this->channel->batch_basic_publish($amqpMessage, $this->exchangeName, $this->getRoutingKey($queue));
 
 		return true;
 	}
@@ -269,6 +269,9 @@ class AMQPQueue extends Queue implements QueueContract
 	 */
 	public function pushRaw($payload, $queue = null, array $options = [])
 	{
+		// NB: DYNAMIC PRIORITY IS NOT IMPLEMENTED FOR RAW MESSAGES,
+		// NB: NEED TO SET THE $this->messageProperties['priority'] FIELD
+
 		$queue = $this->prepareQueue($queue);
 		$amqpPayload = new AMQPMessage($payload, $this->messageProperties);
 		$this->channel->basic_publish($amqpPayload, $this->exchangeName, $queue);
@@ -296,8 +299,8 @@ class AMQPQueue extends Queue implements QueueContract
 		$queue = $this->prepareQueue($queue);
 		$delayedQueueName = $this->declareDelayedQueue($queue, $delay);
 
-		$payload = new AMQPMessage($this->createPayload($job, $data), $this->messageProperties);
-		$this->channel->basic_publish($payload, $this->exchangeName, $delayedQueueName);
+		$amqpMessage = $this->priorityMessage($job, $data);
+		$this->channel->basic_publish($amqpMessage, $this->exchangeName, $delayedQueueName);
 		return true;
 	}
 
@@ -410,7 +413,54 @@ class AMQPQueue extends Queue implements QueueContract
 		return $queue;
 	}
 
-	// FNX OVERRIDE STRING PAYLOAD GENERATION
+
+
+	// FNX - ADD DYNAMIC PRIORITY TO MESSAGE
+	/**
+	 * @param string 	$job
+	 * @param mixed 	$data
+	 *
+	 * @return AMQPMessage
+	 */
+	protected function priorityMessage($job, $data)
+	{
+		$payloadJson = $this->createPayload($job, $data);
+		$arrPayload = json_decode($payloadJson, true);
+
+		// OVERRIDE PRIORITY
+		// NB: IMPLEMENT QUEUE DEFAULT PRIORITY USING THE FIELD `message_properties['priority']` IN THE CONFIG
+		$props = $this->messageProperties;
+		if (!empty($arrPayload['priority']) && $arrPayload['priority'] > 0)
+			$props['priority'] = $arrPayload['priority'];
+
+		$amqpMessage = new AMQPMessage($payloadJson, $props);
+		return $amqpMessage;
+
+	}
+
+	// FNX - OVERRIDE PAYLOAD GENERATION
+	/**
+	 * Create a payload for an object-based queue handler.
+	 *
+	 * @param  mixed  $job
+	 * @return array
+	 */
+	protected function createObjectPayload($job)
+	{
+		return [
+			'data' => [
+				'command' => serialize(clone $job),
+				'commandName' => get_class($job),
+			],
+			'displayName' => $this->getDisplayName($job),
+			'job' => 'Illuminate\Queue\CallQueuedHandler@call',
+			'maxTries' => $job->tries ?? null,
+			'timeout' => $job->timeout ?? null,
+			'timeoutAt' => $this->getJobExpiration($job),
+			// PRIORITY
+			'priority' => $job->priority ?? null,
+		];
+	}
 	/**
 	 * Create a typical, string based queue payload array.
 	 *
@@ -429,6 +479,7 @@ class AMQPQueue extends Queue implements QueueContract
 			'data' 		=> $payload['data'],
 			// BUG-FIX FOR ATTEMPTS HERE (OTHERWISE THIS FUNCTION IS THE SAME AS THE BASE IMPLEMENTATION):
 			'attempts' 	=> $payload['attempts'],
+			'priority'  => $payload['priority'] ?? null,
 		];
 
 		return $x;
