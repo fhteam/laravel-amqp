@@ -54,7 +54,7 @@ class ArrayUtil
     public static function removeNullsRecursive(array $arr)
     {
         return static::arrayFilterRecursive($arr, function ($var) {
-            return !is_null($var);
+            return null !== $var;
         });
     }
 }

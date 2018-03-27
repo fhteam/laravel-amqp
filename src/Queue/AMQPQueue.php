@@ -52,32 +52,42 @@ class AMQPQueue extends Queue implements QueueContract
      * @var string Default channel id if needed
      */
     private $defaultChannelId;
+
     /**
      * @var array
      */
     private $queueFlags;
+
     /**
      * @var array
      */
     private $messageProperties;
 
     /**
+     * @var bool
+     */
+    private $declareQueues;
+
+    /**
      * @param AMQPStreamConnection $connection
-     * @param string         $defaultQueueName  Default queue name
-     * @param array          $queueFlags        Queue flags See a list of parameters to
-     *                                          \PhpAmqpLib\Channel\AMQPChannel::queue_declare. Parameters should be
-     *                                          passed like for call_user_func_array in this parameter
-     * @param array          $messageProperties This is passed as a second parameter to \PhpAmqpLib\Message\AMQPMessage
-     *                                          constructor
-     * @param string         $defaultChannelId  Default channel id
-     * @param string         $exchangeName      Exchange name
-     * @param mixed          $exchangeType      Exchange type
-     * @param mixed          $exchangeFlags     Exchange flags
+     * @param string               $defaultQueueName  Default queue name
+     * @param array                $queueFlags        Queue flags See a list of parameters to
+     *                                                \PhpAmqpLib\Channel\AMQPChannel::queue_declare. Parameters should
+     *                                                be passed like for call_user_func_array in this parameter
+     * @param bool                 $declareQueues     If we should declare queues before actually trying to send a
+     *                                                message
+     * @param array                $messageProperties This is passed as a second parameter to
+     *                                                \PhpAmqpLib\Message\AMQPMessage constructor
+     * @param string               $defaultChannelId  Default channel id
+     * @param string               $exchangeName      Exchange name
+     * @param mixed                $exchangeType      Exchange type
+     * @param mixed                $exchangeFlags     Exchange flags
      */
     public function __construct(
         AMQPStreamConnection $connection,
         $defaultQueueName = null,
         $queueFlags = [],
+        $declareQueues = true,
         $messageProperties = [],
         $defaultChannelId = null,
         $exchangeName = '',
@@ -87,6 +97,7 @@ class AMQPQueue extends Queue implements QueueContract
         $this->connection = $connection;
         $this->defaultQueueName = $defaultQueueName ?: 'default';
         $this->queueFlags = $queueFlags;
+        $this->declareQueues = $declareQueues;
         $this->messageProperties = $messageProperties;
         $this->defaultChannelId = $defaultChannelId;
         $this->exchangeName = $exchangeName;
@@ -98,9 +109,9 @@ class AMQPQueue extends Queue implements QueueContract
     }
 
     /**
-     * @param string $exchangeName The name of the exchange. For example, 'logs'
-     * @param string $exchangeType The type of the exchange. See EXCHANGE_TYPE_* constants for details
-     * @param array $exchangeFlags The flags of the exchange. See \PhpAmqpLib\Channel\AMQPChannel::exchange_declare
+     * @param string $exchangeName  The name of the exchange. For example, 'logs'
+     * @param string $exchangeType  The type of the exchange. See EXCHANGE_TYPE_* constants for details
+     * @param array  $exchangeFlags The flags of the exchange. See \PhpAmqpLib\Channel\AMQPChannel::exchange_declare
      *                              (from third parameter onwards). Must be an assoc array. Default flags can be omitted
      *
      * @see \PhpAmqpLib\Channel\AMQPChannel::exchange_declare
@@ -109,15 +120,15 @@ class AMQPQueue extends Queue implements QueueContract
     protected function declareExchange($exchangeName, $exchangeType, array $exchangeFlags = [])
     {
         $flags = array_replace([
-            'exchange' => $exchangeName,
-            'type' => $exchangeType,
-            'passive' => false,
-            'durable' => false,
+            'exchange'    => $exchangeName,
+            'type'        => $exchangeType,
+            'passive'     => false,
+            'durable'     => false,
             'auto_delete' => true,
-            'internal' => false,
-            'nowait' => false,
-            'arguments' => null,
-            'ticket' => null,
+            'internal'    => false,
+            'nowait'      => false,
+            'arguments'   => null,
+            'ticket'      => null,
         ], $exchangeFlags);
 
         call_user_func_array([$this->channel, 'exchange_declare'], $flags);
@@ -130,16 +141,48 @@ class AMQPQueue extends Queue implements QueueContract
      * @param  mixed  $data  Job custom data. Usually array
      * @param  string $queue Queue name, if different from the default one
      *
+     * @throws \Illuminate\Queue\InvalidPayloadException
      * @throws AMQPException
      * @return bool Always true
      */
     public function push($job, $data = '', $queue = null)
     {
-        $queue = $this->getQueueName($queue);
-        $this->declareQueue($queue);
+        $queue = $this->prepareQueue($queue);
         $payload = new AMQPMessage($this->createPayload($job, $data), $this->messageProperties);
         $this->channel->basic_publish($payload, $this->exchangeName, $this->getRoutingKey($queue));
+
         return true;
+    }
+
+
+    /**
+     * Adds the message to internal buffer to be sent later in a batch
+     *
+     * @param string $job   Job implementation class name
+     * @param mixed  $data  Job custom data. Usually array
+     * @param string $queue Queue name, if different from the default one
+     *
+     * @return bool
+     * @throws \Illuminate\Queue\InvalidPayloadException
+     * @throws AMQPException
+     */
+    public function addMessageToBatch($job, $data = '', $queue = null)
+    {
+        $queue = $this->prepareQueue($queue);
+        $payload = new AMQPMessage($this->createPayload($job, $data), $this->messageProperties);
+        $this->channel->batch_basic_publish($payload, $this->exchangeName, $this->getRoutingKey($queue));
+
+        return true;
+    }
+
+    /**
+     * Publishes and internal buffer of messages, that were added before with {@see addMessageToBatch}
+     *
+     * @return void
+     */
+    public function pushBatch()
+    {
+        $this->channel->publish_batch();
     }
 
     /**
@@ -164,29 +207,30 @@ class AMQPQueue extends Queue implements QueueContract
      *
      * @param string $name The name of the queue to declare
      *
-     * @return void
+     * @return QueueInfo
+     * @throws AMQPException
      */
     public function declareQueue($name)
     {
         $queue = $this->getQueueName($name);
         $flags = array_replace_recursive([
-            'queue' => $queue,
-            'passive' => false,
-            'durable' => false,
-            'exclusive' => false,
+            'queue'       => $queue,
+            'passive'     => false,
+            'durable'     => false,
+            'exclusive'   => false,
             'auto_delete' => true,
-            'nowait' => false,
-            'arguments' => null,
-            'ticket' => null,
+            'nowait'      => false,
+            'arguments'   => null,
+            'ticket'      => null,
         ], $this->getQueueFlags($name));
 
-        call_user_func_array([$this->channel, 'queue_declare'], $flags);
+        return QueueInfo::createFromDeclareOk(call_user_func_array([$this->channel, 'queue_declare'], $flags));
     }
 
     /**
-     * @param string $queueName
+     * @param string      $queueName
      * @param null|string $deferredQueueName
-     * @param null|int $deferredQueueDelay
+     * @param null|int    $deferredQueueDelay
      *
      * @return array
      */
@@ -206,6 +250,7 @@ class AMQPQueue extends Queue implements QueueContract
      *  Get routing key from config or use default one (queue name)
      *
      * @param $queue string
+     *
      * @return string Routing key name
      */
     protected function getRoutingKey($queue)
@@ -221,13 +266,13 @@ class AMQPQueue extends Queue implements QueueContract
      * @param  array  $options Currently unused
      *
      * @return bool Always true
+     * @throws AMQPException
      */
     public function pushRaw($payload, $queue = null, array $options = [])
     {
-        $queue = $this->getQueueName($queue);
-        $this->declareQueue($queue);
-        $payload = new AMQPMessage($payload, $this->messageProperties);
-        $this->channel->basic_publish($payload, $this->exchangeName, $queue);
+        $queue = $this->prepareQueue($queue);
+        $amqpPayload = new AMQPMessage($payload, $this->messageProperties);
+        $this->channel->basic_publish($amqpPayload, $this->exchangeName, $queue);
         return true;
     }
 
@@ -240,6 +285,8 @@ class AMQPQueue extends Queue implements QueueContract
      * @param  string        $queue Queue name, if different from the default one
      *
      * @return bool Always true
+     * @throws \Illuminate\Queue\InvalidPayloadException
+     * @throws AMQPException
      */
     public function later($delay, $job, $data = '', $queue = null)
     {
@@ -247,8 +294,7 @@ class AMQPQueue extends Queue implements QueueContract
             $delay = $delay->getTimestamp() - time();
         }
 
-        $queue = $this->getQueueName($queue);
-        $this->declareQueue($queue);
+        $queue = $this->prepareQueue($queue);
         $delayedQueueName = $this->declareDelayedQueue($queue, $delay);
 
         $payload = new AMQPMessage($this->createPayload($job, $data), $this->messageProperties);
@@ -263,6 +309,7 @@ class AMQPQueue extends Queue implements QueueContract
      * @param int    $delay                Queue delay in seconds
      *
      * @return string Deferred queue name for the specified delay
+     * @throws AMQPException
      */
     public function declareDelayedQueue($destinationQueueName, $delay)
     {
@@ -270,21 +317,21 @@ class AMQPQueue extends Queue implements QueueContract
         $deferredQueueName = $destinationQueueName . '_deferred_' . $delay;
 
         $flags = array_replace_recursive([
-            'queue' => '',
-            'passive' => false,
-            'durable' => false,
-            'exclusive' => false,
+            'queue'       => '',
+            'passive'     => false,
+            'durable'     => false,
+            'exclusive'   => false,
             'auto_delete' => true,
-            'nowait' => false,
-            'arguments' => null,
-            'ticket' => null,
+            'nowait'      => false,
+            'arguments'   => null,
+            'ticket'      => null,
         ], $this->getQueueFlags($destinationQueueName, $deferredQueueName, $delay), [
-            'queue' => $deferredQueueName,
-            'durable' => true,
+            'queue'     => $deferredQueueName,
+            'durable'   => true,
             'arguments' => new AMQPTable([
-                'x-dead-letter-exchange' => '',
+                'x-dead-letter-exchange'    => '',
                 'x-dead-letter-routing-key' => $destinationQueueName,
-                'x-message-ttl' => intval($delay * 1000),
+                'x-message-ttl'             => intval($delay * 1000),
             ]),
         ]);
 
@@ -298,11 +345,11 @@ class AMQPQueue extends Queue implements QueueContract
      * @param string|null $queue Queue name if different from the default one
      *
      * @return \Illuminate\Queue\Jobs\Job|null Job instance or null if no unhandled jobs available
+     * @throws AMQPException
      */
     public function pop($queue = null)
     {
-        $queue = $this->getQueueName($queue);
-        $this->declareQueue($queue);
+        $queue = $this->prepareQueue($queue);
         $envelope = $this->channel->basic_get($queue);
 
         if ($envelope instanceof AMQPMessage) {
@@ -316,9 +363,51 @@ class AMQPQueue extends Queue implements QueueContract
      * Get the size of the queue.
      *
      * @param  string $queue
+     *
      * @return int
+     * @throws AMQPException
      */
     public function size($queue = null)
     {
+        $data = $this->declareQueue($this->getQueueName($queue));
+        return $data->getJobs();
+    }
+
+    /**
+     * @return array
+     */
+    public function getMessageProperties()
+    {
+        return $this->messageProperties;
+    }
+
+    /**
+     * @param array $messageProperties
+     *
+     * @return AMQPQueue
+     */
+    public function setMessageProperties(array $messageProperties)
+    {
+        $this->messageProperties = $messageProperties;
+
+        return $this;
+    }
+
+    /**
+     * Prepares a queue for later use. Declares it if needed
+     *
+     * @param string $queue
+     *
+     * @return string
+     * @throws AMQPException
+     */
+    private function prepareQueue($queue)
+    {
+        $queue = $this->getQueueName($queue);
+        if ($this->declareQueues) {
+            $this->declareQueue($queue);
+        }
+
+        return $queue;
     }
 }
