@@ -125,11 +125,14 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
      * Get the job identifier.
      *
      * @return string
-     * @throws \OutOfBoundsException
      */
     public function getJobId()
     {
-        return $this->amqpMessage->get('message_id');
+        try {
+            return $this->amqpMessage->get('message_id');
+        } catch (\OutOfBoundsException $exception){
+            return null;
+        }
     }
 
 }
