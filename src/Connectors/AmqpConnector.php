@@ -50,7 +50,7 @@ class AmqpConnector implements ConnectorInterface
         return new AMQPQueue(
             $connection, $config['queue'], $config['queue_flags'], isset($config['declare_queues']) ? $config['declare_queues'] : true,
             $config['message_properties'], $config['channel_id'],
-            $config['exchange_name'], $config['exchange_type'], $config['exchange_flags']
+            $config['exchange_name'], $config['exchange_type'], $config['exchange_flags'], (isset($config['retry_after']) ? $config['retry_after'] : 0)
         );
     }
 }

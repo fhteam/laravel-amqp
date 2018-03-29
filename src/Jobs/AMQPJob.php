@@ -75,6 +75,10 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
         $job = $body['job'];
         $data = $body['data'];
 
+        //if retry_after option is set use it on failure instead of traditional delay
+        if(isset($body['data']['retryAfter']) && $body['data']['retryAfter'] > 0)
+            $delay = $body['data']['retryAfter'];
+
         /** @var QueueContract $queue */
         $queue = $this->container['queue']->connection();
         if ($delay > 0) {
@@ -127,4 +131,5 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
     {
         return $this->amqpMessage->get('message_id');
     }
+
 }

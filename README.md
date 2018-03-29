@@ -41,6 +41,9 @@ In your ```config/queue.php``` file you have to provide the following:
         'exchange_name' => null,
         'exchange_type' => null,
         'exchange_flags' => null,
+        'keepalive' > false,
+        'heartbeat' => 0,
+        'retry_after' => 0,
         ),
 ),
 ```

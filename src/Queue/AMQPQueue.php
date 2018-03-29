@@ -6,6 +6,7 @@ use Forumhouse\LaravelAmqp\Exception\AMQPException;
 use Forumhouse\LaravelAmqp\Jobs\AMQPJob;
 use Forumhouse\LaravelAmqp\Utility\ArrayUtil;
 use Illuminate\Contracts\Queue\Queue as QueueContract;
+use Illuminate\Queue\InvalidPayloadException;
 use Illuminate\Queue\Queue;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPConnection;
@@ -69,6 +70,11 @@ class AMQPQueue extends Queue implements QueueContract
     private $declareQueues;
 
     /**
+     * @var int
+     */
+    private $retryAfter;
+
+    /**
      * @param AMQPStreamConnection $connection
      * @param string               $defaultQueueName  Default queue name
      * @param array                $queueFlags        Queue flags See a list of parameters to
@@ -82,6 +88,7 @@ class AMQPQueue extends Queue implements QueueContract
      * @param string               $exchangeName      Exchange name
      * @param mixed                $exchangeType      Exchange type
      * @param mixed                $exchangeFlags     Exchange flags
+     * @param mixed                $retryAfter       Optional timeout for failed jobs
      */
     public function __construct(
         AMQPStreamConnection $connection,
@@ -92,7 +99,8 @@ class AMQPQueue extends Queue implements QueueContract
         $defaultChannelId = null,
         $exchangeName = '',
         $exchangeType = null,
-        $exchangeFlags = []
+        $exchangeFlags = [],
+        $retryAfter = 0
     ) {
         $this->connection = $connection;
         $this->defaultQueueName = $defaultQueueName ?: 'default';
@@ -102,6 +110,7 @@ class AMQPQueue extends Queue implements QueueContract
         $this->defaultChannelId = $defaultChannelId;
         $this->exchangeName = $exchangeName;
         $this->channel = $connection->channel($this->defaultChannelId);
+        $this->retryAfter = $retryAfter;
 
         if ($exchangeName !== null) {
             $this->declareExchange($exchangeName, $exchangeType, $exchangeFlags);
@@ -132,6 +141,13 @@ class AMQPQueue extends Queue implements QueueContract
         ], $exchangeFlags);
 
         call_user_func_array([$this->channel, 'exchange_declare'], $flags);
+    }
+
+    /**
+     * @return array
+     */
+    public function getCustomMessageOptions(){
+        return ['retryAfter' => $this->retryAfter];
     }
 
     /**
@@ -409,5 +425,48 @@ class AMQPQueue extends Queue implements QueueContract
         }
 
         return $queue;
+    }
+
+    /**
+     * Create a payload string from the given job and data.
+     *
+     * @param  string  $job
+     * @param  mixed   $data
+     * @return string
+     *
+     * @throws \Illuminate\Queue\InvalidPayloadException
+     */
+    protected function createPayload($job, $data = '')
+    {
+        $data = is_array($data) ? array_merge($data, $this->getCustomMessageOptions()) : $this->getCustomMessageOptions();
+        $payload = json_encode($this->createPayloadArray($job, $data));
+        if (JSON_ERROR_NONE !== json_last_error()) {
+            throw new InvalidPayloadException(
+                'Unable to JSON encode payload. Error code: '.json_last_error()
+            );
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Create a payload for an object-based queue handler.
+     *
+     * @param  mixed  $job
+     * @return array
+     */
+    protected function createObjectPayload($job)
+    {
+        return [
+            'displayName' => $this->getDisplayName($job),
+            'job' => 'Illuminate\Queue\CallQueuedHandler@call',
+            'maxTries' => $job->tries ?? null,
+            'timeout' => $job->timeout ?? null,
+            'timeoutAt' => $this->getJobExpiration($job),
+            'data' => array_merge([
+                'commandName' => get_class($job),
+                'command' => serialize(clone $job),
+            ],$this->getCustomMessageOptions()),
+        ];
     }
 }
