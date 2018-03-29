@@ -1,5 +1,5 @@
 {
-  "name": "foenixteam/laravel-amqp",
+  "name": "fhteam/laravel-amqp",
   "description": "AMQP library driver for Laravel Queue",
   "minimum-stability": "stable",
   "license": "GPL-2.0",
