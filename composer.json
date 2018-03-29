@@ -4,7 +4,7 @@
   "minimum-stability": "stable",
   "license": "GPL-2.0",
   "require": {
-    "php": ">=7",
+    "php": ">=7.1",
     "php-amqplib/php-amqplib": "2.6.*"
   },
   "require-dev": {
