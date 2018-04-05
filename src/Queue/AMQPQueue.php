@@ -6,6 +6,7 @@ use Forumhouse\LaravelAmqp\Exception\AMQPException;
 use Forumhouse\LaravelAmqp\Jobs\AMQPJob;
 use Forumhouse\LaravelAmqp\Utility\ArrayUtil;
 use Illuminate\Contracts\Queue\Queue as QueueContract;
+use Illuminate\Queue\InvalidPayloadException;
 use Illuminate\Queue\Queue;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPConnection;
@@ -141,14 +142,14 @@ class AMQPQueue extends Queue implements QueueContract
      * @param  mixed  $data  Job custom data. Usually array
      * @param  string $queue Queue name, if different from the default one
      *
-     * @throws \Illuminate\Queue\InvalidPayloadException
+     * @throws InvalidPayloadException
      * @throws AMQPException
      * @return bool Always true
      */
     public function push($job, $data = '', $queue = null)
     {
         $queue = $this->prepareQueue($queue);
-        $amqpMessage = $this->priorityMessage($job, $data);
+        $amqpMessage = $this->prepareMessage($job, $data);
         $this->channel->basic_publish($amqpMessage, $this->exchangeName, $this->getRoutingKey($queue));
 
         return true;
@@ -162,13 +163,13 @@ class AMQPQueue extends Queue implements QueueContract
      * @param string $queue Queue name, if different from the default one
      *
      * @return bool
-     * @throws \Illuminate\Queue\InvalidPayloadException
+     * @throws InvalidPayloadException
      * @throws AMQPException
      */
     public function addMessageToBatch($job, $data = '', $queue = null)
     {
         $queue = $this->prepareQueue($queue);
-        $amqpMessage = $this->priorityMessage($job, $data);
+        $amqpMessage = $this->prepareMessage($job, $data);
         $this->channel->batch_basic_publish($amqpMessage, $this->exchangeName, $this->getRoutingKey($queue));
 
         return true;
@@ -287,7 +288,7 @@ class AMQPQueue extends Queue implements QueueContract
      * @param  string        $queue Queue name, if different from the default one
      *
      * @return bool Always true
-     * @throws \Illuminate\Queue\InvalidPayloadException
+     * @throws InvalidPayloadException
      * @throws AMQPException
      */
     public function later($delay, $job, $data = '', $queue = null)
@@ -299,7 +300,7 @@ class AMQPQueue extends Queue implements QueueContract
         $queue = $this->prepareQueue($queue);
         $delayedQueueName = $this->declareDelayedQueue($queue, $delay);
 
-        $amqpMessage = $this->priorityMessage($job, $data);
+        $amqpMessage = $this->prepareMessage($job, $data);
         $this->channel->basic_publish($amqpMessage, $this->exchangeName, $delayedQueueName);
         return true;
     }
@@ -416,13 +417,15 @@ class AMQPQueue extends Queue implements QueueContract
 
 
     // FNX - ADD DYNAMIC PRIORITY TO MESSAGE
+
     /**
-     * @param string 	$job
-     * @param mixed 	$data
+     * @param string $job
+     * @param mixed  $data
      *
      * @return AMQPMessage
+     * @throws InvalidPayloadException
      */
-    protected function priorityMessage($job, $data)
+    protected function prepareMessage($job, $data)
     {
         $payloadJson = $this->createPayload($job, $data);
         $arrPayload = json_decode($payloadJson, true);
@@ -433,8 +436,7 @@ class AMQPQueue extends Queue implements QueueContract
         if (!empty($arrPayload['priority']) && $arrPayload['priority'] > 0)
             $props['priority'] = $arrPayload['priority'];
 
-        $amqpMessage = new AMQPMessage($payloadJson, $props);
-        return $amqpMessage;
+        return new AMQPMessage($payloadJson, $props);
 
     }
 
@@ -454,11 +456,10 @@ class AMQPQueue extends Queue implements QueueContract
             ],
             'displayName' => $this->getDisplayName($job),
             'job' => 'Illuminate\Queue\CallQueuedHandler@call',
-            'maxTries' => $job->tries ?? null,
-            'timeout' => $job->timeout ?? null,
+            'maxTries' => empty($job->tries) ? null : $job->tries,
+            'timeout' => empty($job->timeout) ? null : $job->timeout,
             'timeoutAt' => $this->getJobExpiration($job),
-            // PRIORITY
-            'priority' => $job->priority ?? null,
+            'priority' => empty($job->priority) ? null : $job->priority,
         ];
     }
     /**
@@ -479,7 +480,7 @@ class AMQPQueue extends Queue implements QueueContract
             'data' 		=> $payload['data'],
             // BUG-FIX FOR ATTEMPTS HERE (OTHERWISE THIS FUNCTION IS THE SAME AS THE BASE IMPLEMENTATION):
             'attempts' 	=> $payload['attempts'],
-            'priority'  => $payload['priority'] ?? null,
+            'priority'  => empty($payload['priority']) ? null : $payload['priority'],
         ];
     }
 }
