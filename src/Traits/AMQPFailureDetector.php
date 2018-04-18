@@ -32,6 +32,7 @@ trait AMQPFailureDetector
             'Transaction() on null',
             'child connection forced to terminate due to client_idle_limit',
             'Channel connection is closed',
+            "Broken pipe",
         ]);
     }
 }
