@@ -19,15 +19,6 @@ class BaseFeaturesTest extends LaravelAmqpTestBase
     const TEST_JOB_CLASS = 'Forumhouse\LaravelAmqp\Tests\TestJobHandler';
 
     /**
-     *
-     */
-    public function setUp()
-    {
-        parent::setUp();
-    }
-
-
-    /**
      * Test for a job, ending with a delete() call (deleted from queue)
      */
     public function testSimpleDelete()

@@ -9,7 +9,7 @@ trait AMQPFailureDetector
 
     public function catchAMQPConnectionFailure(Exception $exception)
     {
-        if(\App::runningInConsole() && $this->causedByLostConnection($exception) && extension_loaded('posix')){
+        if(app()->runningInConsole() && $this->causedByLostConnection($exception) && extension_loaded('posix')){
             posix_kill(getmypid(), SIGTERM);
         }
     }

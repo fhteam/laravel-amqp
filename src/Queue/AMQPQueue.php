@@ -9,7 +9,6 @@ use Illuminate\Contracts\Queue\Queue as QueueContract;
 use Illuminate\Queue\InvalidPayloadException;
 use Illuminate\Queue\Queue;
 use PhpAmqpLib\Channel\AMQPChannel;
-use PhpAmqpLib\Connection\AMQPConnection;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
@@ -30,7 +29,7 @@ class AMQPQueue extends Queue implements QueueContract
     const EXCHANGE_TYPE_FANOUT = 'fanout';
 
     /**
-     * @var AMQPConnection Connection to amqp compatible server
+     * @var AMQPStreamConnection Connection to amqp compatible server
      */
     protected $connection;
 
@@ -164,7 +163,7 @@ class AMQPQueue extends Queue implements QueueContract
     public function push($job, $data = '', $queue = null)
     {
         $queue = $this->prepareQueue($queue);
-        $payload = new AMQPMessage($this->createPayload($job, $data), $this->messageProperties);
+        $payload = new AMQPMessage($this->createPayload($job, $queue, $data), $this->messageProperties);
         $this->channel->basic_publish($payload, $this->exchangeName, $this->getRoutingKey($queue));
 
         return true;
@@ -185,7 +184,7 @@ class AMQPQueue extends Queue implements QueueContract
     public function addMessageToBatch($job, $data = '', $queue = null)
     {
         $queue = $this->prepareQueue($queue);
-        $payload = new AMQPMessage($this->createPayload($job, $data), $this->messageProperties);
+        $payload = new AMQPMessage($this->createPayload($job, $queue, $data), $this->messageProperties);
         $this->channel->batch_basic_publish($payload, $this->exchangeName, $this->getRoutingKey($queue));
 
         return true;
@@ -313,7 +312,7 @@ class AMQPQueue extends Queue implements QueueContract
         $queue = $this->prepareQueue($queue);
         $delayedQueueName = $this->declareDelayedQueue($queue, $delay);
 
-        $payload = new AMQPMessage($this->createPayload($job, $data), $this->messageProperties);
+        $payload = new AMQPMessage($this->createPayload($job, $queue, $data), $this->messageProperties);
         $this->channel->basic_publish($payload, $this->exchangeName, $delayedQueueName);
         return true;
     }
@@ -431,15 +430,16 @@ class AMQPQueue extends Queue implements QueueContract
      * Create a payload string from the given job and data.
      *
      * @param  string  $job
+     * @param  string  $queue
      * @param  mixed   $data
      * @return string
      *
      * @throws \Illuminate\Queue\InvalidPayloadException
      */
-    protected function createPayload($job, $data = '')
+    protected function createPayload($job, $queue, $data = '')
     {
         $data = is_array($data) ? array_merge($data, $this->getCustomMessageOptions()) : $this->getCustomMessageOptions();
-        $payload = json_encode($this->createPayloadArray($job, $data));
+        $payload = json_encode($this->createPayloadArray($job, $queue, $data));
         if (JSON_ERROR_NONE !== json_last_error()) {
             throw new InvalidPayloadException(
                 'Unable to JSON encode payload. Error code: '.json_last_error()
@@ -453,20 +453,28 @@ class AMQPQueue extends Queue implements QueueContract
      * Create a payload for an object-based queue handler.
      *
      * @param  mixed  $job
+     * @param  string  $queue
      * @return array
      */
-    protected function createObjectPayload($job)
+    protected function createObjectPayload($job, $queue)
     {
-        return [
+        $payload = $this->withCreatePayloadHooks($queue, [
             'displayName' => $this->getDisplayName($job),
             'job' => 'Illuminate\Queue\CallQueuedHandler@call',
             'maxTries' => $job->tries ?? null,
             'timeout' => $job->timeout ?? null,
             'timeoutAt' => $this->getJobExpiration($job),
+            'data' => [
+                'commandName' => $job,
+                'command' => $job,
+            ],
+        ]);
+
+        return array_merge($payload, [
             'data' => array_merge([
                 'commandName' => get_class($job),
                 'command' => serialize(clone $job),
             ],$this->getCustomMessageOptions()),
-        ];
+        ]);
     }
 }
