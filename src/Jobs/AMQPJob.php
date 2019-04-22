@@ -70,6 +70,10 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
         $body['attempts'] = $this->attempts() + 1;
         $job = $body['job'];
 
+        //if retry_after option is set use it on failure instead of traditional delay
+        if(isset($body['data']['retryAfter']) && $body['data']['retryAfter'] > 0)
+            $delay = $body['data']['retryAfter'];
+
         /** @var QueueContract $queue */
         $queue = $this->container['queue']->connection();
         if ($delay > 0) {
@@ -119,10 +123,14 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
      * Get the job identifier.
      *
      * @return string
-     * @throws \OutOfBoundsException
      */
     public function getJobId()
     {
-        return $this->amqpMessage->get('message_id');
+        try {
+            return $this->amqpMessage->get('message_id');
+        } catch (\OutOfBoundsException $exception){
+            return null;
+        }
     }
+
 }

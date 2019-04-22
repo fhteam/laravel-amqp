@@ -9,7 +9,6 @@ use Illuminate\Contracts\Queue\Queue as QueueContract;
 use Illuminate\Queue\InvalidPayloadException;
 use Illuminate\Queue\Queue;
 use PhpAmqpLib\Channel\AMQPChannel;
-use PhpAmqpLib\Connection\AMQPConnection;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
@@ -30,7 +29,7 @@ class AMQPQueue extends Queue implements QueueContract
     const EXCHANGE_TYPE_FANOUT = 'fanout';
 
     /**
-     * @var AMQPConnection Connection to amqp compatible server
+     * @var AMQPStreamConnection Connection to amqp compatible server
      */
     protected $connection;
 
@@ -70,6 +69,11 @@ class AMQPQueue extends Queue implements QueueContract
     private $declareQueues;
 
     /**
+     * @var int
+     */
+    private $retryAfter;
+
+    /**
      * @param AMQPStreamConnection $connection
      * @param string               $defaultQueueName  Default queue name
      * @param array                $queueFlags        Queue flags See a list of parameters to
@@ -83,6 +87,7 @@ class AMQPQueue extends Queue implements QueueContract
      * @param string               $exchangeName      Exchange name
      * @param mixed                $exchangeType      Exchange type
      * @param mixed                $exchangeFlags     Exchange flags
+     * @param mixed                $retryAfter       Optional timeout for failed jobs
      */
     public function __construct(
         AMQPStreamConnection $connection,
@@ -93,7 +98,8 @@ class AMQPQueue extends Queue implements QueueContract
         $defaultChannelId = null,
         $exchangeName = '',
         $exchangeType = null,
-        $exchangeFlags = []
+        $exchangeFlags = [],
+        $retryAfter = 0
     ) {
         $this->connection = $connection;
         $this->defaultQueueName = $defaultQueueName ?: 'default';
@@ -103,6 +109,7 @@ class AMQPQueue extends Queue implements QueueContract
         $this->defaultChannelId = $defaultChannelId;
         $this->exchangeName = $exchangeName;
         $this->channel = $connection->channel($this->defaultChannelId);
+        $this->retryAfter = $retryAfter;
 
         if ($exchangeName !== null) {
             $this->declareExchange($exchangeName, $exchangeType, $exchangeFlags);
@@ -136,21 +143,28 @@ class AMQPQueue extends Queue implements QueueContract
     }
 
     /**
+     * @return array
+     */
+    public function getCustomMessageOptions(){
+        return ['retryAfter' => $this->retryAfter];
+    }
+
+    /**
      * Push a new job onto the queue.
      *
      * @param  string $job   Job implementation class name
      * @param  mixed  $data  Job custom data. Usually array
      * @param  string $queue Queue name, if different from the default one
      *
-     * @throws InvalidPayloadException
+     * @throws \Illuminate\Queue\InvalidPayloadException
      * @throws AMQPException
      * @return bool Always true
      */
     public function push($job, $data = '', $queue = null)
     {
         $queue = $this->prepareQueue($queue);
-        $amqpMessage = $this->prepareMessage($job, $data);
-        $this->channel->basic_publish($amqpMessage, $this->exchangeName, $this->getRoutingKey($queue));
+        $payload = new AMQPMessage($this->createPayload($job, $queue, $data), $this->messageProperties);
+        $this->channel->basic_publish($payload, $this->exchangeName, $this->getRoutingKey($queue));
 
         return true;
     }
@@ -163,14 +177,14 @@ class AMQPQueue extends Queue implements QueueContract
      * @param string $queue Queue name, if different from the default one
      *
      * @return bool
-     * @throws InvalidPayloadException
+     * @throws \Illuminate\Queue\InvalidPayloadException
      * @throws AMQPException
      */
     public function addMessageToBatch($job, $data = '', $queue = null)
     {
         $queue = $this->prepareQueue($queue);
-        $amqpMessage = $this->prepareMessage($job, $data);
-        $this->channel->batch_basic_publish($amqpMessage, $this->exchangeName, $this->getRoutingKey($queue));
+        $payload = new AMQPMessage($this->createPayload($job, $queue, $data), $this->messageProperties);
+        $this->channel->batch_basic_publish($payload, $this->exchangeName, $this->getRoutingKey($queue));
 
         return true;
     }
@@ -270,9 +284,6 @@ class AMQPQueue extends Queue implements QueueContract
      */
     public function pushRaw($payload, $queue = null, array $options = [])
     {
-        // NB: DYNAMIC PRIORITY IS NOT IMPLEMENTED FOR RAW MESSAGES,
-        // NB: NEED TO SET THE $this->messageProperties['priority'] FIELD
-
         $queue = $this->prepareQueue($queue);
         $amqpPayload = new AMQPMessage($payload, $this->messageProperties);
         $this->channel->basic_publish($amqpPayload, $this->exchangeName, $queue);
@@ -288,7 +299,7 @@ class AMQPQueue extends Queue implements QueueContract
      * @param  string        $queue Queue name, if different from the default one
      *
      * @return bool Always true
-     * @throws InvalidPayloadException
+     * @throws \Illuminate\Queue\InvalidPayloadException
      * @throws AMQPException
      */
     public function later($delay, $job, $data = '', $queue = null)
@@ -300,8 +311,8 @@ class AMQPQueue extends Queue implements QueueContract
         $queue = $this->prepareQueue($queue);
         $delayedQueueName = $this->declareDelayedQueue($queue, $delay);
 
-        $amqpMessage = $this->prepareMessage($job, $data);
-        $this->channel->basic_publish($amqpMessage, $this->exchangeName, $delayedQueueName);
+        $payload = new AMQPMessage($this->createPayload($job, $queue, $data), $this->messageProperties);
+        $this->channel->basic_publish($payload, $this->exchangeName, $delayedQueueName);
         return true;
     }
 
@@ -334,7 +345,7 @@ class AMQPQueue extends Queue implements QueueContract
             'arguments' => new AMQPTable([
                 'x-dead-letter-exchange'    => '',
                 'x-dead-letter-routing-key' => $destinationQueueName,
-                'x-message-ttl'             => $delay * 1000,
+                'x-message-ttl'             => intval($delay * 1000),
             ]),
         ]);
 
@@ -414,73 +425,55 @@ class AMQPQueue extends Queue implements QueueContract
         return $queue;
     }
 
-
-
-    // FNX - ADD DYNAMIC PRIORITY TO MESSAGE
-
     /**
-     * @param string $job
-     * @param mixed  $data
+     * Create a payload string from the given job and data.
      *
-     * @return AMQPMessage
-     * @throws InvalidPayloadException
+     * @param  string  $job
+     * @param  string  $queue
+     * @param  mixed   $data
+     * @return string
+     *
+     * @throws \Illuminate\Queue\InvalidPayloadException
      */
-    protected function prepareMessage($job, $data)
+    protected function createPayload($job, $queue, $data = '')
     {
-        $payloadJson = $this->createPayload($job, $data);
-        $arrPayload = json_decode($payloadJson, true);
+        $data = is_array($data) ? array_merge($data, $this->getCustomMessageOptions()) : $this->getCustomMessageOptions();
+        $payload = json_encode($this->createPayloadArray($job, $queue, $data));
+        if (JSON_ERROR_NONE !== json_last_error()) {
+            throw new InvalidPayloadException(
+                'Unable to JSON encode payload. Error code: '.json_last_error()
+            );
+        }
 
-        // OVERRIDE PRIORITY
-        // NB: IMPLEMENT QUEUE DEFAULT PRIORITY USING THE FIELD `message_properties['priority']` IN THE CONFIG
-        $props = $this->messageProperties;
-        if (!empty($arrPayload['priority']) && $arrPayload['priority'] > 0)
-            $props['priority'] = $arrPayload['priority'];
-
-        return new AMQPMessage($payloadJson, $props);
-
+        return $payload;
     }
 
-    // FNX - OVERRIDE PAYLOAD GENERATION
     /**
      * Create a payload for an object-based queue handler.
      *
      * @param  mixed  $job
+     * @param  string  $queue
      * @return array
      */
-    protected function createObjectPayload($job)
+    protected function createObjectPayload($job, $queue)
     {
-        return [
-            'data' => [
-                'command' => serialize(clone $job),
-                'commandName' => get_class($job),
-            ],
+        $payload = $this->withCreatePayloadHooks($queue, [
             'displayName' => $this->getDisplayName($job),
             'job' => 'Illuminate\Queue\CallQueuedHandler@call',
-            'maxTries' => empty($job->tries) ? null : $job->tries,
-            'timeout' => empty($job->timeout) ? null : $job->timeout,
+            'maxTries' => $job->tries ?? null,
+            'timeout' => $job->timeout ?? null,
             'timeoutAt' => $this->getJobExpiration($job),
-            'priority' => empty($job->priority) ? null : $job->priority,
-        ];
-    }
-    /**
-     * Create a typical, string based queue payload array.
-     *
-     * @param  string  	$job
-     * @param  mixed  	$payload
-     *
-     * @return array
-     */
-    protected function createStringPayload($job, $payload)
-    {
-        return [
-            'displayName' => is_string($job) ? explode('@', $job)[0] : null,
-            'job' => $job,
-            'maxTries' 	=> $payload['maxTries'],
-            'timeout' 	=> $payload['timeout'],
-            'data' 		=> $payload['data'],
-            // BUG-FIX FOR ATTEMPTS HERE (OTHERWISE THIS FUNCTION IS THE SAME AS THE BASE IMPLEMENTATION):
-            'attempts' 	=> $payload['attempts'],
-            'priority'  => empty($payload['priority']) ? null : $payload['priority'],
-        ];
+            'data' => [
+                'commandName' => $job,
+                'command' => $job,
+            ],
+        ]);
+
+        return array_merge($payload, [
+            'data' => array_merge([
+                'commandName' => get_class($job),
+                'command' => serialize(clone $job),
+            ],$this->getCustomMessageOptions()),
+        ]);
     }
 }
