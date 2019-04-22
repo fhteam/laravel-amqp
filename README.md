@@ -41,12 +41,53 @@ In your ```config/queue.php``` file you have to provide the following:
         'exchange_name' => null,
         'exchange_type' => null,
         'exchange_flags' => null,
+        'keepalive' > false,
+        'heartbeat' => 0,
+        'retry_after' => 0,
         ),
 ),
 ```
 
 In your ```config/app.php``` add ```'Forumhouse\LaravelAmqp\ServiceProvider\LaravelAmqpServiceProvider'``` to the list of service 
 providers registered.
+
+Improved worker stability (PHP 7.1+ is required)
+------------
+
+For better stability please add following code in app/Exceptions/Handler.php:
+
+```php
+class Handler extends ExceptionHandler
+{
+```
+
+to
+
+```php
+class Handler extends ExceptionHandler
+{
+    use AMQPFailureDetector;
+```
+
+And
+
+```php
+public function report(Exception $exception)
+{
+    parent::report($exception);
+}
+```
+
+to
+
+```php
+public function report(Exception $exception)
+{
+    $this->catchAMQPConnectionFailure($exception);
+    parent::report($exception);
+}
+```
+
 
 Usage
 ------------
