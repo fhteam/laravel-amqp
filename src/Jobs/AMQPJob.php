@@ -67,7 +67,7 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
         $body = $this->amqpMessage->body;
         $body = json_decode($body, true);
 
-        $body['attempts'] = $this->attempts() + 1;
+        $body['data']['attempts'] = $this->attempts() + 1;
         $job = $body['job'];
 
         //if retry_after option is set use it on failure instead of traditional delay
@@ -77,9 +77,9 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
         /** @var QueueContract $queue */
         $queue = $this->container['queue']->connection();
         if ($delay > 0) {
-            $queue->later($delay, $job, $body, $this->getQueue());
+            $queue->later($delay, $job, $body['data'], $this->getQueue());
         } else {
-            $queue->push($job, $body, $this->getQueue());
+            $queue->push($job, $body['data'], $this->getQueue());
         }
 
         // TODO: IS THIS NECESSARY?
@@ -106,7 +106,7 @@ class AMQPJob extends Job implements \Illuminate\Contracts\Queue\Job
     {
         $body = json_decode($this->amqpMessage->body, true);
 
-        return isset($body['attempts']) ? $body['attempts'] : 0;
+        return isset($body['data']['attempts']) ? $body['data']['attempts'] : 0;
     }
 
     /**
